@@ -11,13 +11,13 @@ def dashboard():
     experts = Expert.query.all()
     committees = Committee.query.all()
     meetings = Meeting.query.all()
-    memberships = Membership.query.all()
+    participations = Participation.query.all()
     return render_template(
         'dashboard.html',
         experts=experts,
         committees=committees,
         meetings=meetings,
-        memberships=memberships
+        participations=participations
     )
 
 @app.route('/add_expert', methods=['GET', 'POST'])
@@ -59,6 +59,25 @@ def add_meeting():
 
         return redirect(url_for('dashboard'))
     return render_template('meetings.html', committees=committees)
+
+    @app.route('/add_participation/<int:meeting_id>', methods=['POST'])
+def add_participation(meeting_id):
+    expert_id = request.form['expert_id']
+    attendance = 'attendance' in request.form
+    report_submitted = 'report_submitted' in request.form
+    reminder_sent = 'reminder_sent' in request.form
+
+    participation = Participation(
+        meeting_id=meeting_id,
+        expert_id=expert_id,
+        attendance=attendance,
+        report_submitted=report_submitted,
+        reminder_sent=reminder_sent
+    )
+    db.session.add(participation)
+    db.session.commit()
+
+    return redirect(url_for('dashboard'))
 
 if __name__ == "__main__":
     with app.app_context():
