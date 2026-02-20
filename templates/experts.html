@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-
 {% block content %}
 <h1 class="mb-4">Add Expert</h1>
 
@@ -13,24 +12,37 @@
         <label for="organisation" class="form-label">Organisation</label>
         <input type="text" name="organisation" class="form-control">
     </div>
-
     <div class="mb-3">
         <label for="email" class="form-label">Email</label>
         <input type="email" name="email" id="email" class="form-control" required>
     </div>
-
     <div class="mb-3">
         <label for="mobile" class="form-label">Mobile</label>
         <input type="text" name="mobile" class="form-control">
     </div>
 
+    <!-- Cascading Dropdowns -->
     <div class="mb-3">
-        <label for="committee_id" class="form-label">Committee</label>
-        <select name="committee_id" id="committee_id" class="form-select">
-            <option value="">-- Select Committee --</option>
-            {% for committee in committees %}
-            <option value="{{ committee.id }}">{{ committee.name }}</option>
+        <label for="nmc_id" class="form-label">NMC</label>
+        <select id="nmc_id" class="form-select">
+            <option value="">-- Select NMC --</option>
+            {% for nmc in nmcs %}
+            <option value="{{ nmc.id }}">{{ nmc.code }} - {{ nmc.title }}</option>
             {% endfor %}
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label for="sc_id" class="form-label">SC</label>
+        <select id="sc_id" name="sc_id" class="form-select">
+            <option value="">-- Select SC --</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label for="wg_id" class="form-label">WG</label>
+        <select id="wg_id" name="wg_id" class="form-select">
+            <option value="">-- Select WG --</option>
         </select>
     </div>
 
@@ -46,6 +58,8 @@
                 <tr>
                     <th>Name</th>
                     <th>Email</th>
+                    <th>Mobile</th>
+                    <th>Organisation</th>
                     <th>Committee(s)</th>
                     <th>Actions</th>
                 </tr>
@@ -55,21 +69,26 @@
                 <tr>
                     <td>{{ expert.name }}</td>
                     <td>{{ expert.email }}</td>
+                    <td>{{ expert.mobile }}</td>
+                    <td>{{ expert.organisation }}</td>
                     <td>
                         {% if expert.memberships %}
                         {% for m in expert.memberships %}
-                        {{ m.committee.name }}{% if not loop.last %}, {% endif %}
+                        {% if m.committee.parent_id %}
+                        WG: {{ m.committee.code }} - {{ m.committee.title }}
+                        {% else %}
+                        SC: {{ m.committee.code }} - {{ m.committee.title }}
+                        {% endif %}
+                        {% if not loop.last %}, {% endif %}
                         {% endfor %}
                         {% else %}
                         -
                         {% endif %}
                     </td>
                     <td>
-                        <!-- Edit Expert -->
                         <form method="GET" action="{{ url_for('edit_expert', expert_id=expert.id) }}" class="d-inline">
                             <button type="submit" class="btn btn-sm btn-secondary">Edit</button>
                         </form>
-                        <!-- Delete Expert -->
                         <form method="POST" action="{{ url_for('delete_expert', expert_id=expert.id) }}"
                             class="d-inline">
                             <button type="submit" class="btn btn-sm btn-danger">Delete</button>
@@ -81,4 +100,46 @@
         </table>
     </div>
 </div>
+
+<!-- Cascading Dropdown Script -->
+<script>
+    document.getElementById('nmc_id').addEventListener('change', function () {
+        let nmcId = this.value;
+        let scSelect = document.getElementById('sc_id');
+        scSelect.innerHTML = '<option value="">-- Select SC --</option>';
+        document.getElementById('wg_id').innerHTML = '<option value="">-- Select WG --</option>';
+
+        if (nmcId) {
+            fetch('/get_scs/' + nmcId)
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach(sc => {
+                        let option = document.createElement('option');
+                        option.value = sc.id;
+                        option.textContent = sc.code + ' - ' + sc.title;
+                        scSelect.appendChild(option);
+                    });
+                });
+        }
+    });
+
+    document.getElementById('sc_id').addEventListener('change', function () {
+        let scId = this.value;
+        let wgSelect = document.getElementById('wg_id');
+        wgSelect.innerHTML = '<option value="">-- Select WG --</option>';
+
+        if (scId) {
+            fetch('/get_wgs/' + scId)
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach(wg => {
+                        let option = document.createElement('option');
+                        option.value = wg.id;
+                        option.textContent = wg.code + ' - ' + wg.title;
+                        wgSelect.appendChild(option);
+                    });
+                });
+        }
+    });
+</script>
 {% endblock %}

@@ -116,6 +116,7 @@ def add_membership():
 def add_expert():
     committees = Committee.query.all()
     experts = Expert.query.all()
+
     if request.method == 'POST':
         name = request.form['name']
         email = request.form['email']
@@ -123,10 +124,12 @@ def add_expert():
         organisation = request.form.get('organisation')
         committee_id = request.form.get('committee_id')
 
+        # Create expert
         expert = Expert(name=name, email=email, mobile=mobile, organisation=organisation)
         db.session.add(expert)
         db.session.commit()
 
+        # Optional membership assignment
         if committee_id:
             membership = Membership(expert_id=expert.id, committee_id=committee_id)
             db.session.add(membership)
@@ -134,7 +137,18 @@ def add_expert():
 
         flash('Expert added successfully!', 'success')
         return redirect(url_for('add_expert'))
+
     return render_template('experts.html', committees=committees, experts=experts)
+
+@app.route('/get_scs/<int:nmc_id>')
+def get_scs(nmc_id):
+    scs = Committee.query.filter_by(nmc_id=nmc_id, parent_id=None).all()
+    return jsonify([{'id': sc.id, 'code': sc.code, 'title': sc.title} for sc in scs])
+
+@app.route('/get_wgs/<int:sc_id>')
+def get_wgs(sc_id):
+    wgs = Committee.query.filter_by(parent_id=sc_id).all()
+    return jsonify([{'id': wg.id, 'code': wg.code, 'title': wg.title} for wg in wgs])
 
 # Edit Expert
 @app.route('/edit_expert/<int:expert_id>', methods=['GET', 'POST'])
