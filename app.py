@@ -1,5 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for
 from models import db, Expert, Committee, Membership, Meeting, Participation
+import csv
+from flask import Response
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///committee.db'
@@ -96,6 +98,33 @@ def delete_participation(participation_id):
     db.session.delete(participation)
     db.session.commit()
     return redirect(url_for('dashboard'))
+
+
+@app.route('/export_participation/<int:committee_id>')
+def export_participation(committee_id):
+    committee = Committee.query.get_or_404(committee_id)
+    meetings = Meeting.query.filter_by(committee_id=committee_id).all()
+
+    # Create CSV response
+    def generate():
+        data = []
+        header = ['Meeting Date', 'Expert', 'Attendance', 'Report Submitted', 'Reminder Sent']
+        yield ','.join(header) + '\n'
+
+        for meeting in meetings:
+            participations = Participation.query.filter_by(meeting_id=meeting.id).all()
+            for p in participations:
+                row = [
+                    str(meeting.date),
+                    p.expert.name,
+                    'Yes' if p.attendance else 'No',
+                    'Yes' if p.report_submitted else 'No',
+                    'Yes' if p.reminder_sent else 'No'
+                ]
+                yield ','.join(row) + '\n'
+
+    return Response(generate(), mimetype='text/csv',
+                    headers={"Content-Disposition": f"attachment;filename={committee.name}_participation.csv"})
 
 if __name__ == "__main__":
     with app.app_context():

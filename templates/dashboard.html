@@ -8,15 +8,19 @@
     <h1>Committee Dashboard</h1>
 
     <h2>Committees</h2>
-    <ul>
-        {% for committee in committees %}
-            <li>{{ committee.name }}
-                {% if committee.parent %}
-                    (Child of {{ committee.parent.name }})
-                {% endif %}
-            </li>
-        {% endfor %}
-    </ul>
+<ul>
+    {% for committee in committees %}
+        <li>
+            {{ committee.name }}
+            {% if committee.parent %}
+                (Child of {{ committee.parent.name }})
+            {% endif %}
+            <form method="GET" action="{{ url_for('export_participation', committee_id=committee.id) }}" class="mt-1">
+                <button type="submit" class="btn btn-sm btn-success">Export Participation</button>
+            </form>
+        </li>
+    {% endfor %}
+</ul>
 
     <h2>Experts</h2>
     <ul>
