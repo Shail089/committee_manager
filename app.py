@@ -90,6 +90,13 @@ def update_participation(participation_id):
     db.session.commit()
     return redirect(url_for('dashboard'))
 
+    @app.route('/delete_participation/<int:participation_id>', methods=['POST'])
+def delete_participation(participation_id):
+    participation = Participation.query.get_or_404(participation_id)
+    db.session.delete(participation)
+    db.session.commit()
+    return redirect(url_for('dashboard'))
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()

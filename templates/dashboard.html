@@ -90,6 +90,11 @@
                 </div>
                 <button type="submit" class="btn btn-sm btn-secondary mt-1">Update</button>
             </form>
+
+            <!-- Delete button -->
+            <form method="POST" action="{{ url_for('delete_participation', participation_id=p.id) }}" class="mt-1">
+                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
         </li>
     {% endfor %}
 </ul>
