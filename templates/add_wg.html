@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Add WG</h2>
+<form method="POST">
+    <div class="mb-3">
+        <label>Code</label>
+        <input type="text" name="code" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label>Title</label>
+        <input type="text" name="title" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label>NMC</label>
+        <select name="nmc_id" class="form-select" required>
+            {% for nmc in nmcs %}
+            <option value="{{ nmc.id }}">{{ nmc.code }} - {{ nmc.title }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3">
+        <label>SC</label>
+        <select name="sc_id" class="form-select" required>
+            {% for sc in scs %}
+            <option value="{{ sc.id }}">{{ sc.code }} - {{ sc.title }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Add WG</button>
+</form>
+{% endblock %}

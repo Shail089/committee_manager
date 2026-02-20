@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Add NMC</h2>
+<form method="POST">
+    <div class="mb-3">
+        <label>Code</label>
+        <input type="text" name="code" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label>Title</label>
+        <input type="text" name="title" class="form-control" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Add NMC</button>
+</form>
+{% endblock %}

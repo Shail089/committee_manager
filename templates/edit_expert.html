@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="mb-4">Edit Expert</h1>
+
+<form method="POST">
+    <div class="mb-3">
+        <label for="name" class="form-label">Name</label>
+        <input type="text" name="name" id="name" class="form-control" value="{{ expert.name }}" required>
+    </div>
+
+    <div class="mb-3">
+        <label for="email" class="form-label">Email</label>
+        <input type="email" name="email" id="email" class="form-control" value="{{ expert.email }}" required>
+    </div>
+
+    <div class="mb-3">
+        <label for="committee_id" class="form-label">Committee</label>
+        <select name="committee_id" id="committee_id" class="form-select">
+            <option value="">-- Select Committee --</option>
+            {% for committee in committees %}
+            <option value="{{ committee.id }}" {% if expert.memberships and committee.id in [m.committee_id for m in
+                expert.memberships] %}selected{% endif %}>
+                {{ committee.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-success">Update Expert</button>
+    <a href="{{ url_for('add_expert') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

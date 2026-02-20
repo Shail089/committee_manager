@@ -1,109 +1,113 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Committee Dashboard</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-</head>
-<body class="container mt-4">
-    <h1>Committee Dashboard</h1>
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-4">Committee Dashboard</h1>
 
-    <h2>Committees</h2>
-<ul>
-    {% for committee in committees %}
-        <li>
-            {{ committee.name }}
-            {% if committee.parent %}
-                (Child of {{ committee.parent.name }})
-            {% endif %}
-            <form method="GET" action="{{ url_for('export_participation', committee_id=committee.id) }}" class="mt-1">
-                <button type="submit" class="btn btn-sm btn-success">Export Participation</button>
-            </form>
-        </li>
-    {% endfor %}
-</ul>
+<!-- Navigation -->
+<div class="mb-3">
+    <a href="{{ url_for('directory') }}" class="btn btn-outline-dark">Update Directory</a>
+    <a href="{{ url_for('add_meeting') }}" class="btn btn-outline-primary">+ Add Meeting</a>
+</div>
 
-    <h2>Experts</h2>
-    <ul>
-        {% for expert in experts %}
-            <li>{{ expert.name }} - {{ expert.email }}</li>
-        {% endfor %}
-    </ul>
+<div class="row">
+    {% for nmc in nmcs %}
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                {{ nmc.code }} - {{ nmc.title }}
+            </div>
+            <div class="card-body">
+                {% for sc in nmc.subcommittees if sc.parent_id == None %}
+                <h4>{{ sc.code }} - {{ sc.title }}</h4>
 
-    <h2>Memberships</h2>
-    <ul>
-        {% for membership in memberships %}
-            <li>
-                {{ membership.expert.name }} → {{ membership.committee.name }}
-            </li>
-        {% endfor %}
-    </ul>
+                <!-- WGs -->
+                {% if sc.subcommittees %}
+                <ul>
+                    {% for wg in sc.subcommittees %}
+                    <li>{{ wg.code }} - {{ wg.title }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
 
-    <h2>Meetings</h2>
-<ul>
-    {% for meeting in meetings %}
-        <li>
-            <strong>{{ meeting.committee.name }}</strong> on {{ meeting.date }}  
-            <br>Agenda: {{ meeting.agenda }}
+                <!-- Meetings under SC -->
+                {% for meeting in sc.meetings %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ meeting.committee.title }} - {{ meeting.date }}</h5>
+                        <p class="card-text">Agenda: {{ meeting.agenda }}</p>
 
-            <h5 class="mt-2">Participation</h5>
-            <form method="POST" action="{{ url_for('add_participation', meeting_id=meeting.id) }}">
-                <div class="mb-2">
-                    <label>Expert</label>
-                    <select name="expert_id" class="form-select" required>
-                        {% for expert in experts %}
-                            <option value="{{ expert.id }}">{{ expert.name }}</option>
-                        {% endfor %}
-                    </select>
+                        <!-- Bulk Reminder Button -->
+                        <form method="POST" action="{{ url_for('send_reminder', meeting_id=meeting.id) }}">
+                            <button type="submit" class="btn btn-sm btn-warning">Send Reminder to All</button>
+                        </form>
+
+                        <!-- Participation Records -->
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Expert</th>
+                                    <th>Attendance</th>
+                                    <th>Report</th>
+                                    <th>Reminder</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in participations if p.meeting_id == meeting.id %}
+                                <tr>
+                                    <td>{{ p.expert.name }}</td>
+                                    <td>{% if p.attendance %}✔{% else %}✘{% endif %}</td>
+                                    <td>{% if p.report_submitted %}✔{% else %}✘{% endif %}</td>
+                                    <td>{% if p.reminder_sent %}✔{% else %}✘{% endif %}</td>
+                                    <td>
+                                        <form method="POST"
+                                            action="{{ url_for('update_participation', participation_id=p.id) }}"
+                                            class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-secondary">Update</button>
+                                        </form>
+                                        <form method="POST"
+                                            action="{{ url_for('send_individual_reminder', participation_id=p.id) }}"
+                                            class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-info">Send Reminder</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="form-check">
-                    <input type="checkbox" name="attendance" class="form-check-input" id="attend{{ meeting.id }}">
-                    <label class="form-check-label" for="attend{{ meeting.id }}">Attended</label>
-                </div>
-                <div class="form-check">
-                    <input type="checkbox" name="report_submitted" class="form-check-input" id="report{{ meeting.id }}">
-                    <label class="form-check-label" for="report{{ meeting.id }}">Report Submitted</label>
-                </div>
-                <div class="form-check">
-                    <input type="checkbox" name="reminder_sent" class="form-check-input" id="reminder{{ meeting.id }}">
-                    <label class="form-check-label" for="reminder{{ meeting.id }}">Reminder Sent</label>
-                </div>
-                <button type="submit" class="btn btn-sm btn-primary mt-2">Save Participation</button>
-            </form>
+                {% endfor %} <!-- closes meeting loop -->
+                {% endfor %} <!-- closes SC loop -->
+            </div>
+        </div>
+    </div>
+    {% endfor %} <!-- closes NMC loop -->
+</div>
 
-            <ul class="mt-2">
-    {% for p in participations if p.meeting_id == meeting.id %}
-        <li>
-            {{ p.expert.name }} → 
-            {% if p.attendance %}✔ Attended{% else %}✘ Absent{% endif %}, 
-            {% if p.report_submitted %}✔ Report{% else %}✘ No Report{% endif %}, 
-            {% if p.reminder_sent %}✔ Reminder{% else %}✘ No Reminder{% endif %}
-
-            <!-- Edit form -->
-            <form method="POST" action="{{ url_for('update_participation', participation_id=p.id) }}" class="mt-1">
-                <div class="form-check">
-                    <input type="checkbox" name="attendance" class="form-check-input" id="attend{{ p.id }}" {% if p.attendance %}checked{% endif %}>
-                    <label class="form-check-label" for="attend{{ p.id }}">Attended</label>
-                </div>
-                <div class="form-check">
-                    <input type="checkbox" name="report_submitted" class="form-check-input" id="report{{ p.id }}" {% if p.report_submitted %}checked{% endif %}>
-                    <label class="form-check-label" for="report{{ p.id }}">Report Submitted</label>
-                </div>
-                <div class="form-check">
-                    <input type="checkbox" name="reminder_sent" class="form-check-input" id="reminder{{ p.id }}" {% if p.reminder_sent %}checked{% endif %}>
-                    <label class="form-check-label" for="reminder{{ p.id }}">Reminder Sent</label>
-                </div>
-                <button type="submit" class="btn btn-sm btn-secondary mt-1">Update</button>
-            </form>
-
-            <!-- Delete button -->
-            <form method="POST" action="{{ url_for('delete_participation', participation_id=p.id) }}" class="mt-1">
-                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-            </form>
-        </li>
-    {% endfor %}
-</ul>
-        </li>
-    {% endfor %}
-</ul>
-</body>
-</html>
+<!-- Experts Section -->
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">Experts</div>
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Mobile</th>
+                    <th>Organisation</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for expert in experts %}
+                <tr>
+                    <td>{{ expert.name }}</td>
+                    <td>{{ expert.email }}</td>
+                    <td>{{ expert.mobile }}</td>
+                    <td>{{ expert.organisation }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

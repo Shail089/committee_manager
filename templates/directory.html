@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-4">Update Directory</h1>
+
+<div class="mb-3">
+    <a href="{{ url_for('add_nmc') }}" class="btn btn-primary">+ Add NMC</a>
+    <a href="{{ url_for('add_sc') }}" class="btn btn-secondary">+ Add SC</a>
+    <a href="{{ url_for('add_wg') }}" class="btn btn-info">+ Add WG</a>
+    <a href="{{ url_for('add_membership') }}" class="btn btn-success">+ Add Member</a>
+</div>
+
+<!-- Directory Listing -->
+{% for nmc in nmcs %}
+<div class="card mb-4">
+    <div class="card-header bg-dark text-white">
+        {{ nmc.code }} - {{ nmc.title }}
+    </div>
+    <div class="card-body">
+        {% for sc in nmc.subcommittees if sc.parent_id == None %}
+        <h4>{{ sc.code }} - {{ sc.title }}</h4>
+
+        <!-- WGs under SC -->
+        {% for wg in sc.subcommittees %}
+        <h5 class="ms-3">{{ wg.code }} - {{ wg.title }}</h5>
+        <table class="table table-sm ms-3">
+            <thead>
+                <tr>
+                    <th>Expert Name</th>
+                    <th>Organisation</th>
+                    <th>Email</th>
+                    <th>Mobile</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in memberships if m.committee_id == wg.id %}
+                <tr>
+                    <td>{{ m.expert.name }}</td>
+                    <td>{{ m.expert.organisation }}</td>
+                    <td>{{ m.expert.email }}</td>
+                    <td>{{ m.expert.mobile }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endfor %}
+
+        <!-- SC-level members -->
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Expert Name</th>
+                    <th>Organisation</th>
+                    <th>Email</th>
+                    <th>Mobile</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in memberships if m.committee_id == sc.id %}
+                <tr>
+                    <td>{{ m.expert.name }}</td>
+                    <td>{{ m.expert.organisation }}</td>
+                    <td>{{ m.expert.email }}</td>
+                    <td>{{ m.expert.mobile }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
