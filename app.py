@@ -41,6 +41,25 @@ def add_expert():
         return redirect(url_for('dashboard'))
     return render_template('experts.html', committees=committees)
 
+    @app.route('/add_meeting', methods=['GET', 'POST'])
+def add_meeting():
+    committees = Committee.query.all()
+    if request.method == 'POST':
+        committee_id = request.form['committee_id']
+        date = request.form['date']
+        agenda = request.form['agenda']
+
+        meeting = Meeting(
+            committee_id=committee_id,
+            date=date,
+            agenda=agenda
+        )
+        db.session.add(meeting)
+        db.session.commit()
+
+        return redirect(url_for('dashboard'))
+    return render_template('meetings.html', committees=committees)
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()

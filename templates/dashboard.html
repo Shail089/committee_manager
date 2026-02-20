@@ -37,9 +37,10 @@
     <h2>Meetings</h2>
     <ul>
         {% for meeting in meetings %}
-            <li>
-                {{ meeting.committee.name }} on {{ meeting.date }}
-            </li>
+        <li>
+            {{ meeting.committee.name }} on {{ meeting.date }}  
+            <br>Agenda: {{ meeting.agenda }}
+        </li>
         {% endfor %}
     </ul>
 </body>
