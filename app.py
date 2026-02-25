@@ -11,6 +11,8 @@ app.config['SECRET_KEY'] = 'yoursecretkey'
 db.init_app(app)
 
 # Dashboard - NMC → SC → WG hierarchy
+from datetime import date
+
 @app.route('/')
 def homepage():
     # High-level summary view
@@ -18,11 +20,16 @@ def homepage():
     scs = Committee.query.filter(Committee.parent_id == None).all()
     wgs = Committee.query.filter(Committee.parent_id != None).all()
     experts = Expert.query.all()
-    meetings = Meeting.query.order_by(Meeting.date.asc()).all()
+
+    today = date.today()
+
+    # ✅ Only future meetings
+    meetings = Meeting.query.filter(Meeting.date >= today).order_by(Meeting.date.asc()).all()
+
     participations = Participation.query.all()
 
     return render_template(
-        'index.html',   # ✅ homepage summary template
+        'index.html',
         nmcs=nmcs,
         scs=scs,
         wgs=wgs,
@@ -208,9 +215,10 @@ def delete_expert(expert_id):
     return redirect(url_for('add_expert'))
 
 # Add Meeting
+from datetime import date
+
 @app.route('/add_meeting', methods=['GET', 'POST'])
 def add_meeting():
-    committees = Committee.query.all()
     if request.method == 'POST':
         committee_id = request.form['committee_id']
         date_str = request.form['date']
@@ -222,12 +230,10 @@ def add_meeting():
             flash("Invalid date format. Please use YYYY-MM-DD.", "danger")
             return redirect(url_for('add_meeting'))
 
-        # Create meeting
         meeting = Meeting(committee_id=committee_id, date=meeting_date, agenda=agenda)
         db.session.add(meeting)
         db.session.commit()
 
-        # Auto-populate participation for all experts in this committee
         memberships = Membership.query.filter_by(committee_id=committee_id).all()
         for m in memberships:
             participation = Participation(meeting_id=meeting.id, expert_id=m.expert_id)
@@ -235,10 +241,33 @@ def add_meeting():
         db.session.commit()
 
         flash('Meeting scheduled and participation table prepared!', 'success')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('add_meeting'))
 
-    return render_template('meetings.html', committees=committees)
+    # Committees for dropdown (SCs only, with children WGs)
+    scs = Committee.query.filter_by(parent_id=None).all()
 
+    # Collect meetings grouped by NMC
+    nmcs = NationalMirrorCommittee.query.all()
+    today = date.today()
+    nmc_meetings = {}
+    for nmc in nmcs:
+        meetings_set = set()
+        for sc in nmc.subcommittees:
+            meetings_set.update(sc.meetings)
+            for wg in sc.children:
+                meetings_set.update(wg.meetings)
+
+        upcoming = [m for m in meetings_set if m.date >= today]
+        past = [m for m in meetings_set if m.date < today]
+
+        nmc_meetings[nmc.id] = {
+            "upcoming": sorted(upcoming, key=lambda m: m.date),
+            "past": sorted(past, key=lambda m: m.date, reverse=True)
+        }
+
+    return render_template('meetings.html', scs=scs, nmcs=nmcs, nmc_meetings=nmc_meetings)
+
+# Send Reminder
 @app.route('/send_reminder/<int:meeting_id>', methods=['POST'])
 def send_reminder(meeting_id):
     meeting = Meeting.query.get_or_404(meeting_id)
@@ -254,6 +283,7 @@ def send_reminder(meeting_id):
     flash('Reminders sent to all members!', 'info')
     return redirect(url_for('dashboard'))
 
+# Send individual reminder (for experts who haven't submitted report or attended)
 @app.route('/send_individual_reminder/<int:participation_id>', methods=['POST'])
 def send_individual_reminder(participation_id):
     p = Participation.query.get_or_404(participation_id)
@@ -429,9 +459,9 @@ def seed_data():
         db.session.add_all([m1, m2, m3, m4])
         db.session.commit()
 
-        return "Seed data added!"
-    else:
-        return "Database already has data."
+    flash("Database seeded successfully!", "success")
+    return redirect(url_for('homepage'))   # ✅ go to homepage instead of dashboard
+
 
 if __name__ == "__main__":
     with app.app_context():

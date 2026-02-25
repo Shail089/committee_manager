@@ -7,21 +7,24 @@
     <div class="mb-3">
         <label for="committee_id" class="form-label">Committee (SC or WG)</label>
         <select name="committee_id" id="committee_id" class="form-select" required>
-            {% for committee in committees %}
-            <option value="{{ committee.id }}">
-                {% if committee.parent_id %}
-                WG: {{ committee.code }} - {{ committee.title }} (NMC: {{ committee.nmc.code }})
-                {% else %}
-                SC: {{ committee.code }} - {{ committee.title }} (NMC: {{ committee.nmc.code }})
-                {% endif %}
+            {% for sc in scs %}
+            <!-- SC option -->
+            <option value="{{ sc.id }}" class="sc-option">
+                SC: {{ sc.code }} - {{ sc.title }} (NMC: {{ sc.nmc.code }})
             </option>
+            <!-- WG options under this SC -->
+            {% for wg in sc.children %}
+            <option value="{{ wg.id }}">
+                &nbsp;&nbsp;WG: {{ sc.code }}/{{ wg.code }} - {{ wg.title }} (NMC: {{ sc.nmc.code }})
+            </option>
+            {% endfor %}
             {% endfor %}
         </select>
     </div>
 
     <div class="mb-3">
         <label for="date" class="form-label">Meeting Date</label>
-        <input type="text" class="form-control" id="datepicker" name="date" placeholder="YYYY-MM-DD" required>
+        <input type="date" class="form-control" id="date" name="date" required>
     </div>
 
     <div class="mb-3">
@@ -32,14 +35,66 @@
     <button type="submit" class="btn btn-primary">Add Meeting</button>
 </form>
 
-<!-- Datepicker Script -->
-<script>
-    $(function () {
-        $('#datepicker').datepicker({
-            format: 'yyyy-mm-dd',
-            autoclose: true,
-            todayHighlight: true
-        }).datepicker('setDate', new Date()); // auto-fill today
-    });
-</script>
+<hr>
+<h2 class="mt-4">Meetings by NMC</h2>
+
+{% for nmc in nmcs %}
+<div class="card mt-3">
+    <div class="card-header bg-secondary text-white">
+        {{ nmc.code }} - {{ nmc.title }}
+    </div>
+    <div class="card-body">
+        <!-- Upcoming Meetings -->
+        <h5>Upcoming Meetings</h5>
+        {% if nmc_meetings[nmc.id].upcoming %}
+        <table class="table table-sm table-bordered">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Committee</th>
+                    <th>Agenda</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for meeting in nmc_meetings[nmc.id].upcoming %}
+                <tr>
+                    <td>{{ meeting.date }}</td>
+                    <td>{{ meeting.committee.code }} - {{ meeting.committee.title }}</td>
+                    <td>{{ meeting.agenda }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted">No upcoming meetings.</p>
+        {% endif %}
+
+        <!-- Past Meetings -->
+        <h5 class="mt-3">Past Meetings</h5>
+        {% if nmc_meetings[nmc.id].past %}
+        <table class="table table-sm table-bordered">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Committee</th>
+                    <th>Agenda</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for meeting in nmc_meetings[nmc.id].past %}
+                <tr>
+                    <td>{{ meeting.date }}</td>
+                    <td>{{ meeting.committee.code }} - {{ meeting.committee.title }}</td>
+                    <td>{{ meeting.agenda }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted">No past meetings.</p>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+
 {% endblock %}
