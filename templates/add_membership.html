@@ -6,28 +6,76 @@
         <label>Expert</label>
         <select name="expert_id" class="form-select" required>
             {% for expert in experts %}
-            <option value="{{ expert.id }}">{{ expert.name }}</option>
+            <option value="{{ expert.id }}">{{ expert.name }} ({{ expert.email }})</option>
             {% endfor %}
         </select>
     </div>
+
+    <div class="mb-3">
+        <label>NMC</label>
+        <select id="nmc_id" class="form-select">
+            <option value="">-- Select NMC --</option>
+            {% for nmc in nmcs %}
+            <option value="{{ nmc.id }}">{{ nmc.code }} - {{ nmc.title }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
     <div class="mb-3">
         <label>SC</label>
-        <select name="sc_id" class="form-select">
-            <option value="">-- None --</option>
-            {% for sc in scs %}
-            <option value="{{ sc.id }}">{{ sc.code }} - {{ sc.title }}</option>
-            {% endfor %}
+        <select id="sc_id" name="sc_id" class="form-select">
+            <option value="">-- Select SC --</option>
         </select>
     </div>
+
     <div class="mb-3">
         <label>WG</label>
-        <select name="wg_id" class="form-select">
-            <option value="">-- None --</option>
-            {% for wg in wgs %}
-            <option value="{{ wg.id }}">{{ wg.code }} - {{ wg.title }}</option>
-            {% endfor %}
+        <select id="wg_id" name="wg_id" class="form-select">
+            <option value="">-- Select WG --</option>
         </select>
     </div>
+
     <button type="submit" class="btn btn-primary">Add Membership</button>
 </form>
+
+<script>
+    document.getElementById('nmc_id').addEventListener('change', function () {
+        let nmcId = this.value;
+        let scSelect = document.getElementById('sc_id');
+        scSelect.innerHTML = '<option value="">-- Select SC --</option>';
+        document.getElementById('wg_id').innerHTML = '<option value="">-- Select WG --</option>';
+
+        if (nmcId) {
+            fetch('/get_scs/' + nmcId)
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach(sc => {
+                        let option = document.createElement('option');
+                        option.value = sc.id;
+                        option.textContent = sc.code + ' - ' + sc.title;
+                        scSelect.appendChild(option);
+                    });
+                });
+        }
+    });
+
+    document.getElementById('sc_id').addEventListener('change', function () {
+        let scId = this.value;
+        let wgSelect = document.getElementById('wg_id');
+        wgSelect.innerHTML = '<option value="">-- Select WG --</option>';
+
+        if (scId) {
+            fetch('/get_wgs/' + scId)
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach(wg => {
+                        let option = document.createElement('option');
+                        option.value = wg.id;
+                        option.textContent = wg.code + ' - ' + wg.title;
+                        wgSelect.appendChild(option);
+                    });
+                });
+        }
+    });
+</script>
 {% endblock %}

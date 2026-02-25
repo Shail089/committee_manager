@@ -1,7 +1,9 @@
-from flask import Flask, render_template, request, redirect, url_for, Response, flash
+from flask import Flask, render_template, request, redirect, url_for, Response, flash, send_file
 from models import db, Expert, Committee, Membership, Meeting, Participation, NationalMirrorCommittee
 import csv
 from datetime import date, datetime
+from openpyxl import Workbook
+import io
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///committee.db'
@@ -10,11 +12,33 @@ db.init_app(app)
 
 # Dashboard - NMC → SC → WG hierarchy
 @app.route('/')
+def homepage():
+    # High-level summary view
+    nmcs = NationalMirrorCommittee.query.all()
+    scs = Committee.query.filter(Committee.parent_id == None).all()
+    wgs = Committee.query.filter(Committee.parent_id != None).all()
+    experts = Expert.query.all()
+    meetings = Meeting.query.order_by(Meeting.date.asc()).all()
+    participations = Participation.query.all()
+
+    return render_template(
+        'index.html',   # ✅ homepage summary template
+        nmcs=nmcs,
+        scs=scs,
+        wgs=wgs,
+        experts=experts,
+        meetings=meetings,
+        participations=participations
+    )
+
+@app.route('/dashboard')
 def dashboard():
+    # Detailed committee manager
     nmcs = NationalMirrorCommittee.query.all()
     experts = Expert.query.all()
     meetings = Meeting.query.all()
     participations = Participation.query.all()
+
     return render_template(
         'dashboard.html',
         nmcs=nmcs,
@@ -22,9 +46,11 @@ def dashboard():
         meetings=meetings,
         participations=participations
     )
+
     
 @app.route('/directory')
 def directory():
+    # Management page
     nmcs = NationalMirrorCommittee.query.all()
     scs = Committee.query.filter(Committee.parent_id == None).all()
     wgs = Committee.query.filter(Committee.parent_id != None).all()
@@ -70,75 +96,75 @@ def add_sc():
 def add_wg():
     nmcs = NationalMirrorCommittee.query.all()
     scs = Committee.query.filter(Committee.parent_id == None).all()  # only SCs
+
     if request.method == 'POST':
-        code = request.form['code']
+        code = request.form['code']          # e.g. "WG 9"
         title = request.form['title']
-        nmc_id = request.form['nmc_id']
         sc_id = request.form['sc_id']
-        wg = Committee(code=code, title=title, parent_id=sc_id, nmc_id=nmc_id)
+
+        # Fetch the SC object
+        sc = Committee.query.get(sc_id)
+        if not sc:
+            flash("Invalid SC selected", "danger")
+            return redirect(url_for('directory'))
+
+        # Auto‑prefix SC code to WG code
+        merged_code = f"{sc.code}/{code}"
+
+        wg = Committee(
+            code=merged_code,
+            title=title,
+            parent_id=sc.id,     # ✅ link WG to SC
+            nmc_id=sc.nmc_id     # ✅ inherit NMC from SC
+        )
         db.session.add(wg)
         db.session.commit()
+
         flash('WG added successfully!', 'success')
         return redirect(url_for('directory'))
+
     return render_template('add_wg.html', nmcs=nmcs, scs=scs)
 
 @app.route('/add_membership', methods=['GET', 'POST'])
 def add_membership():
     nmcs = NationalMirrorCommittee.query.all()
+    experts = Expert.query.all()
     scs = Committee.query.filter(Committee.parent_id == None).all()
     wgs = Committee.query.filter(Committee.parent_id != None).all()
-    experts = Expert.query.all()
 
     if request.method == 'POST':
         expert_id = request.form['expert_id']
-        sc_id = request.form.get('sc_id')
-        wg_id = request.form.get('wg_id')
+        committee_id = request.form['committee_id']
 
-        if sc_id and not wg_id:
-            membership = Membership(expert_id=expert_id, committee_id=sc_id)
-            db.session.add(membership)
-        elif wg_id and not sc_id:
-            membership = Membership(expert_id=expert_id, committee_id=wg_id)
-            db.session.add(membership)
-        elif sc_id and wg_id:
-            m1 = Membership(expert_id=expert_id, committee_id=sc_id)
-            m2 = Membership(expert_id=expert_id, committee_id=wg_id)
-            db.session.add_all([m1, m2])
-
+        membership = Membership(expert_id=expert_id, committee_id=committee_id)
+        db.session.add(membership)
         db.session.commit()
+
         flash('Membership added successfully!', 'success')
         return redirect(url_for('directory'))
 
-    return render_template('add_membership.html', nmcs=nmcs, scs=scs, wgs=wgs, experts=experts)
+    return render_template('add_membership.html', nmcs=nmcs, experts=experts, scs=scs, wgs=wgs)
 
 # Add Expert
-@app.route('/add_expert', methods=['GET', 'POST'])
+@app.route('/add_expert', methods=['POST'])
 def add_expert():
-    committees = Committee.query.all()
-    experts = Expert.query.all()
+    name = request.form['name']
+    email = request.form['email']
+    mobile = request.form.get('mobile')
+    organisation = request.form.get('organisation')
 
-    if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        mobile = request.form.get('mobile')
-        organisation = request.form.get('organisation')
-        committee_id = request.form.get('committee_id')
+    new_expert = Expert(
+        name=name,
+        email=email,
+        mobile=mobile,
+        organisation=organisation
+    )
+    db.session.add(new_expert)
+    db.session.commit()
 
-        # Create expert
-        expert = Expert(name=name, email=email, mobile=mobile, organisation=organisation)
-        db.session.add(expert)
-        db.session.commit()
-
-        # Optional membership assignment
-        if committee_id:
-            membership = Membership(expert_id=expert.id, committee_id=committee_id)
-            db.session.add(membership)
-            db.session.commit()
-
-        flash('Expert added successfully!', 'success')
-        return redirect(url_for('add_expert'))
-
-    return render_template('experts.html', committees=committees, experts=experts)
+    flash('Expert added successfully!', 'success')
+    # ✅ Redirect back to Update Directory page
+    return redirect(url_for('directory'))
 
 @app.route('/get_scs/<int:nmc_id>')
 def get_scs(nmc_id):
@@ -147,7 +173,8 @@ def get_scs(nmc_id):
 
 @app.route('/get_wgs/<int:sc_id>')
 def get_wgs(sc_id):
-    wgs = Committee.query.filter_by(parent_id=sc_id).all()
+    sc = Committee.query.get(sc_id)
+    wgs = sc.children if sc else []
     return jsonify([{'id': wg.id, 'code': wg.code, 'title': wg.title} for wg in wgs])
 
 # Edit Expert
@@ -302,26 +329,89 @@ def export_participation(committee_id):
     return Response(generate(), mimetype='text/csv',
                     headers={"Content-Disposition": f"attachment;filename={committee.name}_participation.csv"})
 
+# export experts with their NMC and SC/WG memberships
+@app.route('/export_experts')
+def export_experts():
+    experts = Expert.query.all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Experts"
+
+    # Header row
+    ws.append(["Name", "Email", "Phone", "Organisation", "NMC", "Nominations (SC/WG)"])
+
+    for expert in experts:
+        # Group memberships by NMC
+        nmc_map = {}
+        for m in expert.memberships:
+            committee = m.committee
+            # Walk up hierarchy until top-level NMC
+            while committee.parent_id is not None:
+                committee = committee.parent
+            nmc_code = committee.nmc.code  # ✅ top-level NMC code
+            if nmc_code not in nmc_map:
+                nmc_map[nmc_code] = []
+            nmc_map[nmc_code].append(f"{m.committee.code} - {m.committee.title}")
+
+        # Write one row per NMC
+        if nmc_map:
+            for nmc_code, nominations in nmc_map.items():
+                ws.append([
+                    expert.name,
+                    expert.email,
+                    expert.mobile or "",
+                    expert.organisation or "",
+                    nmc_code,
+                    "; ".join(nominations)
+                ])
+        else:
+            # Expert with no memberships
+            ws.append([
+                expert.name,
+                expert.email,
+                expert.mobile or "",
+                expert.organisation or "",
+                "None",
+                "None"
+            ])
+
+    # Save to memory
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name="experts_summary.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
 # Seed Data
 @app.route('/seed')
 def seed_data():
     if not NationalMirrorCommittee.query.first():
         # Create NMCs
-        nmc1 = NationalMirrorCommittee(code="LITD 19", title="Quantum Technologies")
-        nmc2 = NationalMirrorCommittee(code="LITD 24", title="Electronics")
+        nmc1 = NationalMirrorCommittee(code="LITD 19", title="E-Learning")
+        nmc2 = NationalMirrorCommittee(code="LITD 24", title="Magnetic Components, Ferrite Materials, Piezoelectric and Frequency Control Devices")
         db.session.add_all([nmc1, nmc2])
         db.session.commit()
 
-        # Create SCs mapped to NMCs
-        sc1 = Committee(code="SC19", title="SC Quantum Technologies", nmc=nmc1)
-        sc2 = Committee(code="SC24", title="SC Electronics", nmc=nmc2)
+        # Create SCs (parent_id=None)
+        sc1 = Committee(code="ISO/IEC JTC 1/SC 36", title="Information technology for learning, education and training", nmc_id=nmc1.id, parent_id=None)
+        sc2 = Committee(code="IEC/TC 49", title="Piezoelectric, dielectric and electrostatic devices and associated materials for frequency control, selection and detection", nmc_id=nmc2.id, parent_id=None)
+        sc3 = Committee(code="IEC/TC 51", title="Magnetic components, ferrite and magnetic powder materials", nmc_id=nmc2.id, parent_id=None)
+        db.session.add_all([sc1, sc2, sc3])
+        db.session.commit()
 
-        # Create WGs mapped to SCs and NMCs
-        wg1 = Committee(code="WG19A", title="WG Cryptography", parent=sc1, nmc=nmc1)
-        wg2 = Committee(code="WG19B", title="WG Quantum Communication", parent=sc1, nmc=nmc1)
-        wg3 = Committee(code="WG24A", title="WG Microchips", parent=sc2, nmc=nmc2)
-
-        db.session.add_all([sc1, sc2, wg1, wg2, wg3])
+        # Create WGs (parent_id=sc.id)
+        wg1 = Committee(code=f"{sc1.code}/WG 3", title="Learner information", parent_id=sc1.id, nmc_id=nmc1.id)
+        wg2 = Committee(code=f"{sc1.code}/WG 7", title="Culture, language and individual needs", parent_id=sc1.id, nmc_id=nmc1.id)
+        wg3 = Committee(code=f"{sc3.code}/WG 9", title="Inductive components", parent_id=sc3.id, nmc_id=nmc2.id)
+        wg4 = Committee(code=f"{sc3.code}/WG 10", title="Magnetic materials and components for EMC applications", parent_id=sc3.id, nmc_id=nmc2.id)
+        wg5 = Committee(code=f"{sc2.code}/WG 7", title="Piezoelectric, dielectric and electrostatic oscillators", parent_id=sc2.id, nmc_id=nmc2.id)
+        db.session.add_all([wg1, wg2, wg3, wg4, wg5])
         db.session.commit()
 
         # Experts
@@ -332,10 +422,10 @@ def seed_data():
         db.session.commit()
 
         # Memberships
-        m1 = Membership(expert_id=e1.id, committee_id=sc1.id)   # SC only
-        m2 = Membership(expert_id=e2.id, committee_id=wg1.id)   # WG only
-        m3 = Membership(expert_id=e3.id, committee_id=sc2.id)   # SC only
-        m4 = Membership(expert_id=e3.id, committee_id=wg3.id)   # WG also
+        m1 = Membership(expert_id=e1.id, committee_id=sc1.id)
+        m2 = Membership(expert_id=e2.id, committee_id=wg1.id)
+        m3 = Membership(expert_id=e3.id, committee_id=sc2.id)
+        m4 = Membership(expert_id=e3.id, committee_id=wg3.id)
         db.session.add_all([m1, m2, m3, m4])
         db.session.commit()
 
@@ -345,5 +435,6 @@ def seed_data():
 
 if __name__ == "__main__":
     with app.app_context():
+        db.drop_all()
         db.create_all()
     app.run(host="0.0.0.0", port=5000, debug=True)

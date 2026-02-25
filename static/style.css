@@ -1,0 +1,4 @@
+/* Make SC options bold */
+.sc-option {
+    font-weight: bold;
+}

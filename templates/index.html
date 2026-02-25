@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-4">Committee Manager Summary</h1>
+
+<!-- Navigation -->
+<div class="mb-3">
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-dark">Dashboard</a>
+    <a href="{{ url_for('directory') }}" class="btn btn-outline-dark">Update Directory</a>
+    <a href="{{ url_for('add_meeting') }}" class="btn btn-outline-primary">+ Add Meeting</a>
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="card text-center mb-4">
+            <div class="card-header">Total NMCs</div>
+            <div class="card-body">
+                <h3>{{ nmcs|length }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center mb-4">
+            <div class="card-header">Total SCs</div>
+            <div class="card-body">
+                <h3>{{ scs|length }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center mb-4">
+            <div class="card-header">Total WGs</div>
+            <div class="card-body">
+                <h3>{{ wgs|length }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center mb-4">
+            <div class="card-header">Total Experts</div>
+            <div class="card-body">
+                <h3>{{ experts|length }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upcoming Meetings -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">Upcoming Meetings</div>
+    <div class="card-body">
+        {% if meetings %}
+        <ul>
+            {% for meeting in meetings[:3] %}
+            <li>{{ meeting.committee.title }} - {{ meeting.date }} (Agenda: {{ meeting.agenda }})</li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>No upcoming meetings scheduled.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Reminders -->
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">Recent Reminders Sent</div>
+    <div class="card-body">
+        {% for p in participations if p.reminder_sent %}
+        <p>{{ p.expert.name }} reminded for {{ p.meeting.committee.title }} on {{ p.meeting.date }}</p>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Experts and their Nominations -->
+<div class="card mt-4">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <span>Experts and Their Nominations</span>
+        <a href="{{ url_for('export_experts') }}" class="btn btn-light btn-sm">Download Excel</a>
+    </div>
+    <div class="card-body">
+        <!-- ✅ Responsive scroll container -->
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Organisation</th>
+                        <th>NMC</th>
+                        <th>Nominations (SC/WG)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expert in experts %}
+                    {% set nmc_map = expert.get_nmc_map() %}
+                    {% set row_count = nmc_map|length if nmc_map else 1 %}
+
+                    {% if nmc_map %}
+                    {% for nmc_code, nominations in nmc_map.items() %}
+                    <tr>
+                        {% if loop.first %}
+                        <td rowspan="{{ row_count }}" style="white-space: normal;">{{ expert.name }}</td>
+                        <td rowspan="{{ row_count }}" style="white-space: normal;">{{ expert.email }}</td>
+                        <td rowspan="{{ row_count }}" style="white-space: normal;">{{ expert.mobile or "—" }}</td>
+                        <td rowspan="{{ row_count }}" style="white-space: normal;">{{ expert.organisation }}</td>
+                        {% endif %}
+                        <td><span class="badge bg-success">{{ nmc_code }}</span></td>
+                        <td style="white-space: normal;">
+                            {% for nom in nominations %}
+                            <span class="badge bg-info text-dark me-1">{{ nom }}</span>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td>{{ expert.name }}</td>
+                        <td>{{ expert.email }}</td>
+                        <td>{{ expert.mobile or "—" }}</td>
+                        <td>{{ expert.organisation }}</td>
+                        <td><span class="text-muted">No NMC</span></td>
+                        <td><span class="text-muted">No nominations</span></td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

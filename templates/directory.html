@@ -2,71 +2,234 @@
 {% block content %}
 <h1 class="mb-4">Update Directory</h1>
 
-<div class="mb-3">
-    <a href="{{ url_for('add_nmc') }}" class="btn btn-primary">+ Add NMC</a>
-    <a href="{{ url_for('add_sc') }}" class="btn btn-secondary">+ Add SC</a>
-    <a href="{{ url_for('add_wg') }}" class="btn btn-info">+ Add WG</a>
-    <a href="{{ url_for('add_membership') }}" class="btn btn-success">+ Add Member</a>
+<div class="accordion" id="directoryAccordion">
+
+    <!-- Add NMC -->
+    <div class="accordion-item">
+        <h2 class="accordion-header" id="headingNMC">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                data-bs-target="#collapseNMC">
+                ➤ Add National Mirror Committee (NMC)
+            </button>
+        </h2>
+        <div id="collapseNMC" class="accordion-collapse collapse" data-bs-parent="#directoryAccordion">
+            <div class="accordion-body">
+                <form method="POST" action="{{ url_for('add_nmc') }}">
+                    <div class="mb-3">
+                        <label>Code</label>
+                        <input type="text" name="code" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Title</label>
+                        <input type="text" name="title" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add NMC</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add SC -->
+    <div class="accordion-item">
+        <h2 class="accordion-header" id="headingSC">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                data-bs-target="#collapseSC">
+                ➤ Add Subcommittee (SC)
+            </button>
+        </h2>
+        <div id="collapseSC" class="accordion-collapse collapse" data-bs-parent="#directoryAccordion">
+            <div class="accordion-body">
+                <form method="POST" action="{{ url_for('add_sc') }}">
+                    <div class="mb-3">
+                        <label>NMC</label>
+                        <select name="nmc_id" class="form-select" required>
+                            {% for nmc in nmcs %}
+                            <option value="{{ nmc.id }}">{{ nmc.code }} - {{ nmc.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label>Code</label>
+                        <input type="text" name="code" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Title</label>
+                        <input type="text" name="title" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">Add SC</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add WG -->
+    <div class="accordion-item">
+        <h2 class="accordion-header" id="headingWG">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                data-bs-target="#collapseWG">
+                ➤ Add Working Group (WG)
+            </button>
+        </h2>
+        <div id="collapseWG" class="accordion-collapse collapse" data-bs-parent="#directoryAccordion">
+            <div class="accordion-body">
+                <form method="POST" action="{{ url_for('add_wg') }}">
+                    <div class="mb-3">
+                        <label>Parent SC</label>
+                        <select name="sc_id" class="form-select" required>
+                            {% for sc in scs %}
+                            <option value="{{ sc.id }}">{{ sc.code }} - {{ sc.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label>Code</label>
+                        <input type="text" name="code" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Title</label>
+                        <input type="text" name="title" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-warning">Add WG</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Expert -->
+    <div class="accordion-item">
+        <h2 class="accordion-header" id="headingExpert">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                data-bs-target="#collapseExpert">
+                ➤ Add Expert
+            </button>
+        </h2>
+        <div id="collapseExpert" class="accordion-collapse collapse" data-bs-parent="#directoryAccordion">
+            <div class="accordion-body">
+                <form method="POST" action="{{ url_for('add_expert') }}">
+                    <div class="mb-3">
+                        <label>Name</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Email</label>
+                        <input type="email" name="email" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Mobile</label>
+                        <input type="text" name="mobile" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label>Organisation</label>
+                        <input type="text" name="organisation" class="form-control">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Expert</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Add Membership -->
+    <div class="accordion-item">
+        <h2 class="accordion-header" id="headingMembership">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                data-bs-target="#collapseMembership">
+                ➤ Add Membership
+            </button>
+        </h2>
+        <div id="collapseMembership" class="accordion-collapse collapse" data-bs-parent="#directoryAccordion">
+            <div class="accordion-body">
+                <form method="POST" action="{{ url_for('add_membership') }}">
+                    <div class="mb-3">
+                        <label>Expert</label>
+                        <select name="expert_id" class="form-select" required>
+                            {% for expert in experts %}
+                            <option value="{{ expert.id }}">{{ expert.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label>Committee</label>
+                        <select name="committee_id" class="form-select" required>
+                            {% for sc in scs %}
+                            <!-- SC option with special class -->
+                            <option value="{{ sc.id }}" class="sc-option">{{ sc.code }} - {{ sc.title }}</option>
+                            {% for wg in sc.children %}
+                            <option value="{{ wg.id }}">&nbsp;&nbsp;{{ sc.code }}/{{ wg.code }} - {{ wg.title }}
+                            </option>
+                            {% endfor %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-info">Add Membership</button>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 
-<!-- Directory Listing -->
-{% for nmc in nmcs %}
-<div class="card mb-4">
-    <div class="card-header bg-dark text-white">
-        {{ nmc.code }} - {{ nmc.title }}
-    </div>
+<!-- Existing Experts -->
+<div class="card mt-4">
+    <div class="card-header bg-dark text-white">Existing Experts</div>
     <div class="card-body">
-        {% for sc in nmc.subcommittees if sc.parent_id == None %}
-        <h4>{{ sc.code }} - {{ sc.title }}</h4>
-
-        <!-- WGs under SC -->
-        {% for wg in sc.subcommittees %}
-        <h5 class="ms-3">{{ wg.code }} - {{ wg.title }}</h5>
-        <table class="table table-sm ms-3">
+        <table class="table table-hover">
             <thead>
                 <tr>
-                    <th>Expert Name</th>
-                    <th>Organisation</th>
+                    <th>Name</th>
                     <th>Email</th>
                     <th>Mobile</th>
+                    <th>Organisation</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                {% for m in memberships if m.committee_id == wg.id %}
-                <tr>
-                    <td>{{ m.expert.name }}</td>
-                    <td>{{ m.expert.organisation }}</td>
-                    <td>{{ m.expert.email }}</td>
-                    <td>{{ m.expert.mobile }}</td>
+                {% for expert in experts %}
+                <tr id="expert-row-{{ expert.id }}">
+                    <form method="POST" action="{{ url_for('edit_expert', expert_id=expert.id) }}">
+                        <td>
+                            <span class="view-mode">{{ expert.name }}</span>
+                            <input type="text" name="name" value="{{ expert.name }}"
+                                class="form-control edit-mode d-none">
+                        </td>
+                        <td>
+                            <span class="view-mode">{{ expert.email }}</span>
+                            <input type="email" name="email" value="{{ expert.email }}"
+                                class="form-control edit-mode d-none">
+                        </td>
+                        <td>
+                            <span class="view-mode">{{ expert.mobile }}</span>
+                            <input type="text" name="mobile" value="{{ expert.mobile }}"
+                                class="form-control edit-mode d-none">
+                        </td>
+                        <td>
+                            <span class="view-mode">{{ expert.organisation }}</span>
+                            <input type="text" name="organisation" value="{{ expert.organisation }}"
+                                class="form-control edit-mode d-none">
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-secondary edit-btn"
+                                onclick="toggleEdit({{ expert.id }})">Edit</button>
+                            <button type="submit" class="btn btn-sm btn-success save-btn d-none">Save</button>
+                            <form method="POST" action="{{ url_for('delete_expert', expert_id=expert.id) }}"
+                                class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                            </form>
+                        </td>
+                    </form>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-        {% endfor %}
-
-        <!-- SC-level members -->
-        <table class="table table-sm">
-            <thead>
-                <tr>
-                    <th>Expert Name</th>
-                    <th>Organisation</th>
-                    <th>Email</th>
-                    <th>Mobile</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for m in memberships if m.committee_id == sc.id %}
-                <tr>
-                    <td>{{ m.expert.name }}</td>
-                    <td>{{ m.expert.organisation }}</td>
-                    <td>{{ m.expert.email }}</td>
-                    <td>{{ m.expert.mobile }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% endfor %}
     </div>
 </div>
-{% endfor %}
+
+<script>
+    function toggleEdit(id) {
+        const row = document.getElementById('expert-row-' + id);
+        row.querySelectorAll('.view-mode').forEach(el => el.classList.toggle('d-none'));
+        row.querySelectorAll('.edit-mode').forEach(el => el.classList.toggle('d-none'));
+        row.querySelector('.edit-btn').classList.toggle('d-none');
+        row.querySelector('.save-btn').classList.toggle('d-none');
+    }
+</script>
 {% endblock %}

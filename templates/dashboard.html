@@ -1,12 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="mb-4">Committee Dashboard</h1>
-
-<!-- Navigation -->
-<div class="mb-3">
-    <a href="{{ url_for('directory') }}" class="btn btn-outline-dark">Update Directory</a>
-    <a href="{{ url_for('add_meeting') }}" class="btn btn-outline-primary">+ Add Meeting</a>
-</div>
+<h1 class="mb-4">Dashboard</h1>
 
 <div class="row">
     {% for nmc in nmcs %}
@@ -19,28 +13,24 @@
                 {% for sc in nmc.subcommittees if sc.parent_id == None %}
                 <h4>{{ sc.code }} - {{ sc.title }}</h4>
 
-                <!-- WGs -->
-                {% if sc.subcommittees %}
+                {% if sc.children %}
                 <ul>
-                    {% for wg in sc.subcommittees %}
+                    {% for wg in sc.children %}
                     <li>{{ wg.code }} - {{ wg.title }}</li>
                     {% endfor %}
                 </ul>
                 {% endif %}
 
-                <!-- Meetings under SC -->
                 {% for meeting in sc.meetings %}
                 <div class="card mb-3">
                     <div class="card-body">
                         <h5 class="card-title">{{ meeting.committee.title }} - {{ meeting.date }}</h5>
                         <p class="card-text">Agenda: {{ meeting.agenda }}</p>
 
-                        <!-- Bulk Reminder Button -->
                         <form method="POST" action="{{ url_for('send_reminder', meeting_id=meeting.id) }}">
                             <button type="submit" class="btn btn-sm btn-warning">Send Reminder to All</button>
                         </form>
 
-                        <!-- Participation Records -->
                         <table class="table table-sm">
                             <thead>
                                 <tr>
@@ -76,38 +66,11 @@
                         </table>
                     </div>
                 </div>
-                {% endfor %} <!-- closes meeting loop -->
-                {% endfor %} <!-- closes SC loop -->
+                {% endfor %}
+                {% endfor %}
             </div>
         </div>
     </div>
-    {% endfor %} <!-- closes NMC loop -->
-</div>
-
-<!-- Experts Section -->
-<div class="card mb-4">
-    <div class="card-header bg-info text-white">Experts</div>
-    <div class="card-body">
-        <table class="table table-hover">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Mobile</th>
-                    <th>Organisation</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for expert in experts %}
-                <tr>
-                    <td>{{ expert.name }}</td>
-                    <td>{{ expert.email }}</td>
-                    <td>{{ expert.mobile }}</td>
-                    <td>{{ expert.organisation }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    {% endfor %}
 </div>
 {% endblock %}

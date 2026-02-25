@@ -6,7 +6,7 @@
     <title>Committee Manager</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Custom CSS (optional, remove if you don’t have static/style.css yet) -->
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <!-- Datepicker CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-datepicker.min.css') }}">
@@ -17,7 +17,7 @@
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('dashboard') }}">Committee Manager</a>
+            <a class="navbar-brand" href="{{ url_for('homepage') }}">Committee Manager</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                 aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
@@ -25,10 +25,14 @@
 
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav">
+                    <!-- Dashboard (Detailed hierarchy) -->
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('add_expert') }}">Add Expert</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('add_meeting') }}">Add Meeting</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('seed_data') }}">Seed Data</a></li>
+                    <!-- Directory (Manage NMC, SC, WG, Membership, Experts) -->
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('directory') }}">Update Directory</a></li>
+                    <!-- Add Meeting -->
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('add_meeting') }}">Add Meetings</a></li>
+                    <!-- Seed Data -->
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('seed_data') }}">Seed</a></li>
                 </ul>
             </div>
         </div>
@@ -40,11 +44,8 @@
     </div>
 
     <!-- Scripts -->
-    <!-- jQuery -->
     <script src="{{ url_for('static', filename='jquery.min.js') }}"></script>
-    <!-- Bootstrap Bundle -->
     <script src="{{ url_for('static', filename='bootstrap.bundle.min.js') }}"></script>
-    <!-- Bootstrap Datepicker -->
     <script src="{{ url_for('static', filename='bootstrap-datepicker.min.js') }}"></script>
 </body>
 
