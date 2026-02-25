@@ -1,38 +1,34 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="mb-4">Dashboard</h1>
+<h1 class="mb-4 text-primary">Dashboard</h1>
 
 <div class="row">
     {% for nmc in nmcs %}
     <div class="col-md-6">
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                {{ nmc.code }} - {{ nmc.title }}
+        <div class="card shadow mb-4">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <span>{{ nmc.code }} - {{ nmc.title }}</span>
             </div>
             <div class="card-body">
-                {% for sc in nmc.subcommittees if sc.parent_id == None %}
-                <h4>{{ sc.code }} - {{ sc.title }}</h4>
-
-                {% if sc.children %}
-                <ul>
-                    {% for wg in sc.children %}
-                    <li>{{ wg.code }} - {{ wg.title }}</li>
-                    {% endfor %}
-                </ul>
-                {% endif %}
-
-                {% for meeting in sc.meetings %}
-                <div class="card mb-3">
+                <!-- Upcoming Meetings -->
+                <h5 class="text-success">Upcoming Meetings</h5>
+                {% if nmc_meetings[nmc.id].upcoming %}
+                {% for meeting in nmc_meetings[nmc.id].upcoming %}
+                <div class="card mb-3 border-success">
                     <div class="card-body">
-                        <h5 class="card-title">{{ meeting.committee.title }} - {{ meeting.date }}</h5>
-                        <p class="card-text">Agenda: {{ meeting.agenda }}</p>
-
-                        <form method="POST" action="{{ url_for('send_reminder', meeting_id=meeting.id) }}">
-                            <button type="submit" class="btn btn-sm btn-warning">Send Reminder to All</button>
-                        </form>
-
-                        <table class="table table-sm">
-                            <thead>
+                        <h6 class="card-title">
+                            {{ meeting.committee.title }} —
+                            <span class="badge bg-success">{{ meeting.date }}</span>
+                        </h6>
+                        <p class="card-text"><strong>Agenda:</strong> {{ meeting.agenda }}</p>
+                        <div class="mb-2">
+                            <form method="POST" action="{{ url_for('send_reminder', meeting_id=meeting.id) }}"
+                                class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-warning">Send Reminder to All</button>
+                            </form>
+                        </div>
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light">
                                 <tr>
                                     <th>Expert</th>
                                     <th>Attendance</th>
@@ -57,7 +53,8 @@
                                         <form method="POST"
                                             action="{{ url_for('send_individual_reminder', participation_id=p.id) }}"
                                             class="d-inline">
-                                            <button type="submit" class="btn btn-sm btn-info">Send Reminder</button>
+                                            <button type="submit" class="btn btn-sm btn-outline-info">Send
+                                                Reminder</button>
                                         </form>
                                     </td>
                                 </tr>
@@ -67,7 +64,56 @@
                     </div>
                 </div>
                 {% endfor %}
+                {% else %}
+                <p class="text-muted">No upcoming meetings.</p>
+                {% endif %}
+
+                <!-- Past Meetings -->
+                <h5 class="mt-4 text-secondary">Past Meetings</h5>
+                {% if nmc_meetings[nmc.id].past %}
+                {% for meeting in nmc_meetings[nmc.id].past %}
+                <div class="card mb-3 border-secondary">
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            {{ meeting.committee.title }} —
+                            <span class="badge bg-secondary">{{ meeting.date }}</span>
+                        </h6>
+                        <p class="card-text"><strong>Agenda:</strong> {{ meeting.agenda }}</p>
+                        <!-- Past meetings: only individual participation updates -->
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Expert</th>
+                                    <th>Attendance</th>
+                                    <th>Report</th>
+                                    <th>Reminder</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in participations if p.meeting_id == meeting.id %}
+                                <tr>
+                                    <td>{{ p.expert.name }}</td>
+                                    <td>{% if p.attendance %}✔{% else %}✘{% endif %}</td>
+                                    <td>{% if p.report_submitted %}✔{% else %}✘{% endif %}</td>
+                                    <td>{% if p.reminder_sent %}✔{% else %}✘{% endif %}</td>
+                                    <td>
+                                        <form method="POST"
+                                            action="{{ url_for('update_participation', participation_id=p.id) }}"
+                                            class="d-inline">
+                                            <button type="submit" class="btn btn-sm btn-secondary">Update</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
                 {% endfor %}
+                {% else %}
+                <p class="text-muted">No past meetings.</p>
+                {% endif %}
             </div>
         </div>
     </div>

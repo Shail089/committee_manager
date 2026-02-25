@@ -40,19 +40,27 @@ def homepage():
 
 @app.route('/dashboard')
 def dashboard():
-    # Detailed committee manager
     nmcs = NationalMirrorCommittee.query.all()
-    experts = Expert.query.all()
-    meetings = Meeting.query.all()
-    participations = Participation.query.all()
+    today = date.today()
+    nmc_meetings = {}
 
-    return render_template(
-        'dashboard.html',
-        nmcs=nmcs,
-        experts=experts,
-        meetings=meetings,
-        participations=participations
-    )
+    for nmc in nmcs:
+        meetings_set = set()
+        for sc in nmc.subcommittees:
+            meetings_set.update(sc.meetings)
+            for wg in sc.children:
+                meetings_set.update(wg.meetings)
+
+        upcoming = [m for m in meetings_set if m.date >= today]
+        past = [m for m in meetings_set if m.date < today]
+
+        nmc_meetings[nmc.id] = {
+            "upcoming": sorted(upcoming, key=lambda m: m.date),
+            "past": sorted(past, key=lambda m: m.date, reverse=True)
+        }
+
+    participations = Participation.query.all()
+    return render_template('dashboard.html', nmcs=nmcs, nmc_meetings=nmc_meetings, participations=participations)
 
     
 @app.route('/directory')
@@ -465,6 +473,6 @@ def seed_data():
 
 if __name__ == "__main__":
     with app.app_context():
-        db.drop_all()
+        #db.drop_all()
         db.create_all()
     app.run(host="0.0.0.0", port=5000, debug=True)
