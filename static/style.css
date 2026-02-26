@@ -1,4 +1,90 @@
-/* Make SC options bold */
+/* Stronger SC options */
 .sc-option {
-    font-weight: bold;
+    font-weight: 600;
+    color: #004085;
+}
+
+/* Status colors */
+.text-success {
+    color: #28a745;
+    /* Bootstrap green */
+    font-weight: 500;
+}
+
+.text-danger {
+    color: #dc3545;
+    /* Bootstrap red */
+    font-weight: 500;
+}
+
+/* Page background & base text */
+body {
+    background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
+    color: #212529;
+    /* dark gray text */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Card styling */
+.card {
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Card header */
+.card-header {
+    background-color: #004085;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 1rem;
+    border-radius: 10px 10px 0 0;
+}
+
+/* Card body */
+.card-body {
+    color: #212529;
+    font-size: 0.95rem;
+}
+
+/* Tabs container */
+.nav-tabs {
+    border-bottom: 2px solid #dee2e6;
+}
+
+
+/* Inactive tabs: white background, blue text */
+.nav-tabs .nav-link {
+    background-color: #ffffff !important;
+    /* white background */
+    color: #004085 !important;
+    /* deep blue text */
+    border: 1px solid #004085 !important;
+    font-weight: 600;
+    margin-right: 4px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.nav-tabs .nav-link:hover {
+    background-color: #f8f9fa !important;
+    /* light gray hover */
+    color: #0056b3 !important;
+    /* lighter blue text */
+}
+
+/* Active tab: blue background, white text */
+.nav-tabs .nav-link.active {
+    background-color: #004085 !important;
+    /* deep blue background */
+    color: #ffffff !important;
+    /* white text */
+    border: 1px solid #004085 !important;
+    font-weight: 600;
 }

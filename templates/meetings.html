@@ -78,6 +78,7 @@
                     <th>Date</th>
                     <th>Committee</th>
                     <th>Agenda</th>
+                    <th>Status</th>
                 </tr>
             </thead>
             <tbody>
@@ -86,6 +87,13 @@
                     <td>{{ meeting.date }}</td>
                     <td>{{ meeting.committee.code }} - {{ meeting.committee.title }}</td>
                     <td>{{ meeting.agenda }}</td>
+                    <td>
+                        {% if meeting.completion_sent %}
+                        <span class="badge bg-success">Completion Email Sent</span>
+                        {% else %}
+                        <span class="badge bg-danger">Pending Completion Email</span>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

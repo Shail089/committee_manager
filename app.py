@@ -1,17 +1,27 @@
 from flask import Flask, render_template, request, redirect, url_for, Response, flash, send_file
 from models import db, Expert, Committee, Membership, Meeting, Participation, NationalMirrorCommittee
+from apscheduler.schedulers.background import BackgroundScheduler
 import csv
 from datetime import date, datetime
 from openpyxl import Workbook
 import io
+from emails import (
+    announcement_email,
+    reminder_email_all,
+    reminder_email_individual,
+    completion_email,
+    request_update_email
+)
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///committee.db'
 app.config['SECRET_KEY'] = 'yoursecretkey'
 db.init_app(app)
 
-# Dashboard - NMC → SC → WG hierarchy
-from datetime import date
+
+@app.context_processor
+def inject_current_year():
+    return {'current_year': date.today().year}
 
 @app.route('/')
 def homepage():
@@ -25,7 +35,6 @@ def homepage():
 
     # ✅ Only future meetings
     meetings = Meeting.query.filter(Meeting.date >= today).order_by(Meeting.date.asc()).all()
-
     participations = Participation.query.all()
 
     return render_template(
@@ -35,7 +44,8 @@ def homepage():
         wgs=wgs,
         experts=experts,
         meetings=meetings,
-        participations=participations
+        participations=participations,
+        current_year=today.year   # ✅ pass year into template
     )
 
 @app.route('/dashboard')
@@ -43,6 +53,8 @@ def dashboard():
     nmcs = NationalMirrorCommittee.query.all()
     today = date.today()
     nmc_meetings = {}
+    upcoming_count = 0
+    past_count = 0
 
     for nmc in nmcs:
         meetings_set = set()
@@ -54,14 +66,23 @@ def dashboard():
         upcoming = [m for m in meetings_set if m.date >= today]
         past = [m for m in meetings_set if m.date < today]
 
+        upcoming_count += len(upcoming)
+        past_count += len(past)
+
         nmc_meetings[nmc.id] = {
             "upcoming": sorted(upcoming, key=lambda m: m.date),
             "past": sorted(past, key=lambda m: m.date, reverse=True)
         }
 
     participations = Participation.query.all()
-    return render_template('dashboard.html', nmcs=nmcs, nmc_meetings=nmc_meetings, participations=participations)
-
+    return render_template(
+        'dashboard.html',
+        nmcs=nmcs,
+        nmc_meetings=nmc_meetings,
+        participations=participations,
+        upcoming_count=upcoming_count,
+        past_count=past_count
+    )
     
 @app.route('/directory')
 def directory():
@@ -223,8 +244,23 @@ def delete_expert(expert_id):
     return redirect(url_for('add_expert'))
 
 # Add Meeting
-from datetime import date
+from datetime import date, datetime
+from flask import request, redirect, url_for, flash, render_template
+from flask_mail import Mail, Message
 
+from flask_mail import Mail, Message
+
+app.config['MAIL_SERVER'] = 'smtp.mgovcloud.in'   # or smtp.zoho.in / smtp.zoho.eu depending on your domain
+app.config['MAIL_PORT'] = 587                 # TLS port
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False
+app.config['MAIL_USERNAME'] = 'sailendra@bis.gov.in'   # full Zoho Gov email
+app.config['MAIL_PASSWORD'] = '72dNMNWT9fvw'        # the 16-char app password
+app.config['MAIL_DEFAULT_SENDER'] = 'sailendra@bis.gov.in'
+
+mail = Mail(app)
+
+# Add Meeting Route
 @app.route('/add_meeting', methods=['GET', 'POST'])
 def add_meeting():
     if request.method == 'POST':
@@ -242,19 +278,26 @@ def add_meeting():
         db.session.add(meeting)
         db.session.commit()
 
+        # Create participations
         memberships = Membership.query.filter_by(committee_id=committee_id).all()
         for m in memberships:
             participation = Participation(meeting_id=meeting.id, expert_id=m.expert_id)
             db.session.add(participation)
         db.session.commit()
 
-        flash('Meeting scheduled and participation table prepared!', 'success')
+        # Collect recipient emails
+        participations = Participation.query.filter_by(meeting_id=meeting.id).all()
+        recipient_emails = [p.expert.email for p in participations]
+
+        # Send announcement email
+        msg = announcement_email(meeting, recipient_emails)
+        mail.send(msg)
+
+        flash('Meeting scheduled, participation prepared, and announcement email sent!', 'success')
         return redirect(url_for('add_meeting'))
 
-    # Committees for dropdown (SCs only, with children WGs)
+    # Prepare upcoming/past meetings for template
     scs = Committee.query.filter_by(parent_id=None).all()
-
-    # Collect meetings grouped by NMC
     nmcs = NationalMirrorCommittee.query.all()
     today = date.today()
     nmc_meetings = {}
@@ -275,35 +318,65 @@ def add_meeting():
 
     return render_template('meetings.html', scs=scs, nmcs=nmcs, nmc_meetings=nmc_meetings)
 
-# Send Reminder
+
+# Send Reminder to all participants
 @app.route('/send_reminder/<int:meeting_id>', methods=['POST'])
 def send_reminder(meeting_id):
     meeting = Meeting.query.get_or_404(meeting_id)
     participations = Participation.query.filter_by(meeting_id=meeting.id).all()
+    recipient_emails = [p.expert.email for p in participations]
+
+    msg = reminder_email_all(meeting, recipient_emails)
+    mail.send(msg)
+
     for p in participations:
-        send_email(
-            subject=f"Reminder: {meeting.committee.title} Meeting on {meeting.date}",
-            recipients=[p.expert.email],
-            body=f"Dear {p.expert.name},\n\nThis is a reminder for the meeting on {meeting.date}.\nAgenda: {meeting.agenda}\n\nRegards,\nCommittee Manager"
-        )
         p.reminder_sent = True
     db.session.commit()
-    flash('Reminders sent to all members!', 'info')
+
+    flash('Reminder sent to all members in one email!', 'info')
     return redirect(url_for('dashboard'))
 
-# Send individual reminder (for experts who haven't submitted report or attended)
+
+# Send individual reminder
 @app.route('/send_individual_reminder/<int:participation_id>', methods=['POST'])
 def send_individual_reminder(participation_id):
     p = Participation.query.get_or_404(participation_id)
     meeting = p.meeting
-    send_email(
-        subject=f"Reminder: {meeting.committee.title} Meeting on {meeting.date}",
-        recipients=[p.expert.email],
-        body=f"Dear {p.expert.name},\n\nThis is a reminder for the meeting on {meeting.date}.\nAgenda: {meeting.agenda}\n\nRegards,\nCommittee Manager"
-    )
+
+    msg = reminder_email_individual(meeting, p.expert)
+    mail.send(msg)
+
     p.reminder_sent = True
     db.session.commit()
+
     flash(f'Reminder sent to {p.expert.name}!', 'info')
+    return redirect(url_for('dashboard'))
+
+
+# Send completion email (after meeting)
+@app.route('/send_completion/<int:meeting_id>', methods=['POST'])
+def send_completion(meeting_id):
+    meeting = Meeting.query.get_or_404(meeting_id)
+    participations = Participation.query.filter_by(meeting_id=meeting.id).all()
+    recipient_emails = [p.expert.email for p in participations]
+
+    msg = completion_email(meeting, recipient_emails)
+    mail.send(msg)
+
+    flash('Completion email sent to all experts!', 'success')
+    return redirect(url_for('dashboard'))
+
+
+# Send request update email (to individual expert after completion)
+@app.route('/send_request_update/<int:participation_id>', methods=['POST'])
+def send_request_update_route(participation_id):
+    p = Participation.query.get_or_404(participation_id)
+    meeting = p.meeting
+
+    msg = request_update_email(meeting, p.expert)
+    mail.send(msg)
+
+    flash(f'Participation status request sent to {p.expert.name}!', 'info')
     return redirect(url_for('dashboard'))
 
 # Add Participation
@@ -334,7 +407,8 @@ def update_participation(participation_id):
     participation.reminder_sent = 'reminder_sent' in request.form
     db.session.commit()
     flash('Participation updated!', 'info')
-    return redirect(url_for('dashboard'))
+    # Redirect back to dashboard with past tab active
+    return redirect(url_for('dashboard', tab='past'))
 
 # Delete Participation
 @app.route('/delete_participation/<int:participation_id>', methods=['POST'])
@@ -345,28 +419,130 @@ def delete_participation(participation_id):
     flash('Participation deleted!', 'danger')
     return redirect(url_for('dashboard'))
 
-# Export Participation
+# Export for a single committee (NMC)
 @app.route('/export_participation/<int:committee_id>')
 def export_participation(committee_id):
-    committee = Committee.query.get_or_404(committee_id)
-    meetings = Meeting.query.filter_by(committee_id=committee_id).all()
-    def generate():
-        header = ['Meeting Date', 'Expert', 'Attendance', 'Report Submitted', 'Reminder Sent']
-        yield ','.join(header) + '\n'
-        for meeting in meetings:
-            participations = Participation.query.filter_by(meeting_id=meeting.id).all()
-            for p in participations:
-                row = [
-                    str(meeting.date),
-                    p.expert.name,
-                    'Yes' if p.attendance else 'No',
-                    'Yes' if p.report_submitted else 'No',
-                    'Yes' if p.reminder_sent else 'No'
-                ]
-                yield ','.join(row) + '\n'
-    return Response(generate(), mimetype='text/csv',
-                    headers={"Content-Disposition": f"attachment;filename={committee.name}_participation.csv"})
+    committee = NationalMirrorCommittee.query.get_or_404(committee_id)
 
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Participation Report"
+    # Add export date at the very top
+    ws.append([f"Export Date: {date.today().strftime('%Y-%m-%d')}"])
+    ws.append([])  # blank row for spacing
+    # Header row
+    ws.append([
+        "NMC Code", "NMC Title",
+        "SC Code", "SC Title",
+        "WG Code", "WG Title",
+        "Meeting Date", "Agenda",
+        "Expert", "Organisation", "Email", "Phone",
+        "Participation", "Report Submitted", "Reminder Sent"
+    ])
+
+    for sc in committee.subcommittees:
+        for wg in sc.children:
+            for meeting in wg.meetings:
+                
+                if meeting.date < date.today():
+                    participations = Participation.query.filter_by(meeting_id=meeting.id).all()
+                    for p in participations:
+                        ws.append([
+                            committee.code,
+                            committee.title,
+                            sc.code,
+                            sc.title,
+                            wg.code,
+                            wg.title,
+                            meeting.date.strftime("%Y-%m-%d"),
+                            meeting.agenda or "",
+                            p.expert.name,
+                            p.expert.organisation or "",
+                            p.expert.email or "",
+                            p.expert.mobile or "",
+                            "Yes" if p.attendance else "No",
+                            "Yes" if p.report_submitted else "No",
+                            "Yes" if p.reminder_sent else "No"
+                        ])
+
+    # Save to memory
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    # ✅ Add export date to filename
+    export_date = date.today().strftime("%Y-%m-%d")
+    filename = f"{committee.code}_participation_{export_date}.xlsx"
+
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+# Export for ALL committees
+@app.route('/export_all_participation')
+def export_all_participation():
+    nmcs = NationalMirrorCommittee.query.all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "All Participation"
+    # Add export date at the very top
+    ws.append([f"Export Date: {date.today().strftime('%Y-%m-%d')}"])
+    ws.append([])  # blank row for spacing
+    # Header row
+    ws.append([
+        "NMC Code", "NMC Title",
+        "SC Code", "SC Title",
+        "WG Code", "WG Title",
+        "Meeting Date", "Agenda",
+        "Expert", "Organisation", "Email", "Phone",
+        "Participation", "Report Submitted", "Reminder Sent"
+    ])
+
+    for nmc in nmcs:
+        for sc in nmc.subcommittees:
+            for wg in sc.children:
+                for meeting in wg.meetings:
+                    if meeting.date < date.today():
+                        participations = Participation.query.filter_by(meeting_id=meeting.id).all()
+                        for p in participations:
+                            ws.append([
+                                nmc.code,
+                                nmc.title,
+                                sc.code,
+                                sc.title,
+                                wg.code,
+                                wg.title,
+                                meeting.date.strftime("%Y-%m-%d"),
+                                meeting.agenda or "",
+                                p.expert.name,
+                                p.expert.organisation or "",
+                                p.expert.email or "",
+                                p.expert.mobile or "",
+                                "Yes" if p.attendance else "No",
+                                "Yes" if p.report_submitted else "No",
+                                "Yes" if p.reminder_sent else "No"
+                            ])
+
+    # Save to memory
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+     # ✅ Add export date to filename
+    export_date = date.today().strftime("%Y-%m-%d")
+    filename = f"all_committees_participation_{export_date}.xlsx"
+
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    
 # export experts with their NMC and SC/WG memberships
 @app.route('/export_experts')
 def export_experts():
@@ -427,23 +603,43 @@ def export_experts():
     )
 
 # Seed Data
+from datetime import date, timedelta
+
 @app.route('/seed')
 def seed_data():
     if not NationalMirrorCommittee.query.first():
         # Create NMCs
         nmc1 = NationalMirrorCommittee(code="LITD 19", title="E-Learning")
-        nmc2 = NationalMirrorCommittee(code="LITD 24", title="Magnetic Components, Ferrite Materials, Piezoelectric and Frequency Control Devices")
+        nmc2 = NationalMirrorCommittee(
+            code="LITD 24",
+            title="Magnetic Components, Ferrite Materials, Piezoelectric and Frequency Control Devices"
+        )
         db.session.add_all([nmc1, nmc2])
         db.session.commit()
 
-        # Create SCs (parent_id=None)
-        sc1 = Committee(code="ISO/IEC JTC 1/SC 36", title="Information technology for learning, education and training", nmc_id=nmc1.id, parent_id=None)
-        sc2 = Committee(code="IEC/TC 49", title="Piezoelectric, dielectric and electrostatic devices and associated materials for frequency control, selection and detection", nmc_id=nmc2.id, parent_id=None)
-        sc3 = Committee(code="IEC/TC 51", title="Magnetic components, ferrite and magnetic powder materials", nmc_id=nmc2.id, parent_id=None)
+        # Create SCs
+        sc1 = Committee(
+            code="ISO/IEC JTC 1/SC 36",
+            title="Information technology for learning, education and training",
+            nmc_id=nmc1.id,
+            parent_id=None
+        )
+        sc2 = Committee(
+            code="IEC/TC 49",
+            title="Piezoelectric, dielectric and electrostatic devices and associated materials for frequency control, selection and detection",
+            nmc_id=nmc2.id,
+            parent_id=None
+        )
+        sc3 = Committee(
+            code="IEC/TC 51",
+            title="Magnetic components, ferrite and magnetic powder materials",
+            nmc_id=nmc2.id,
+            parent_id=None
+        )
         db.session.add_all([sc1, sc2, sc3])
         db.session.commit()
 
-        # Create WGs (parent_id=sc.id)
+        # Create WGs
         wg1 = Committee(code=f"{sc1.code}/WG 3", title="Learner information", parent_id=sc1.id, nmc_id=nmc1.id)
         wg2 = Committee(code=f"{sc1.code}/WG 7", title="Culture, language and individual needs", parent_id=sc1.id, nmc_id=nmc1.id)
         wg3 = Committee(code=f"{sc3.code}/WG 9", title="Inductive components", parent_id=sc3.id, nmc_id=nmc2.id)
@@ -467,9 +663,43 @@ def seed_data():
         db.session.add_all([m1, m2, m3, m4])
         db.session.commit()
 
-    flash("Database seeded successfully!", "success")
-    return redirect(url_for('homepage'))   # ✅ go to homepage instead of dashboard
+        # Meetings (some past, some upcoming)
+        today = date.today()
+        past1 = Meeting(committee_id=sc1.id, date=today - timedelta(days=30), agenda="Review of e-learning standards")
+        past2 = Meeting(committee_id=sc2.id, date=today - timedelta(days=10), agenda="Discussion on piezoelectric devices")
+        upcoming1 = Meeting(committee_id=wg1.id, date=today + timedelta(days=7), agenda="Learner information schema update")
+        upcoming2 = Meeting(committee_id=wg3.id, date=today + timedelta(days=15), agenda="Inductive components testing protocols")
+        upcoming3 = Meeting(committee_id=wg5.id, date=today + timedelta(days=45), agenda="Oscillator material improvements")
 
+        db.session.add_all([past1, past2, upcoming1, upcoming2, upcoming3])
+        db.session.commit()
+
+    flash("Database seeded successfully with committees, experts, memberships, and meetings!", "success")
+    return redirect(url_for('homepage'))
+
+def send_completion_emails():
+    today = date.today()
+    past_meetings = Meeting.query.filter(
+        Meeting.date < today,
+        Meeting.completion_sent == False
+    ).all()
+
+    for meeting in past_meetings:
+        participations = Participation.query.filter_by(meeting_id=meeting.id).all()
+        recipient_emails = [p.expert.email for p in participations]
+
+        msg = completion_email(meeting, recipient_emails)
+        mail.send(msg)
+
+        meeting.completion_sent = True
+        db.session.commit()
+
+        print(f"Completion email sent for meeting {meeting.id}")
+
+# --- Scheduler setup ---
+scheduler = BackgroundScheduler()
+scheduler.add_job(send_completion_emails, 'interval', days=1)  # run once per day
+scheduler.start()
 
 if __name__ == "__main__":
     with app.app_context():

@@ -10,43 +10,103 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <!-- Datepicker CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-datepicker.min.css') }}">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar {
+            background: linear-gradient(90deg, #004085, #0056b3);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .navbar-brand,
+        .nav-link {
+            color: #fff !important;
+        }
+
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        footer {
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            padding: 1rem;
+            text-align: center;
+            margin-top: 2rem;
+        }
+    </style>
 </head>
 
 <body>
 
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('homepage') }}">Committee Manager</a>
+            <a class="navbar-brand fw-bold" href="{{ url_for('homepage') }}">Committee Manager</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                 aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
 
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
-                    <!-- Dashboard (Detailed hierarchy) -->
+                <ul class="navbar-nav ms-auto">
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a></li>
-                    <!-- Directory (Manage NMC, SC, WG, Membership, Experts) -->
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('directory') }}">Update Directory</a></li>
-                    <!-- Add Meeting -->
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('add_meeting') }}">Add Meetings</a></li>
-                    <!-- Seed Data -->
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('seed_data') }}">Seed</a></li>
                 </ul>
             </div>
         </div>
     </nav>
 
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="container mt-2">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
     <!-- Page Content -->
     <div class="container mt-4">
-        {% block content %}{% endblock %}
+        <div class="card">
+            <div class="card-body">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
     </div>
+
+    <!-- Footer -->
+    <footer>
+        <small>&copy; {{ current_year }} Sailendra Kumar Verma. All rights reserved.</small>
+    </footer>
 
     <!-- Scripts -->
     <script src="{{ url_for('static', filename='jquery.min.js') }}"></script>
     <script src="{{ url_for('static', filename='bootstrap.bundle.min.js') }}"></script>
     <script src="{{ url_for('static', filename='bootstrap-datepicker.min.js') }}"></script>
+
+    <!-- Auto-dismiss alerts after 4 seconds -->
+    <script>
+        setTimeout(function () {
+            let alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                let bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 4000); // 4 seconds
+    </script>
 </body>
 
 </html>

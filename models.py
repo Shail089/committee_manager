@@ -70,6 +70,9 @@ class Meeting(db.Model):
 
     committee = db.relationship("Committee", backref="meetings")
 
+    # NEW FIELD
+    completion_sent = db.Column(db.Boolean, default=False)
+
 
 class Participation(db.Model):
     __tablename__ = "participation"

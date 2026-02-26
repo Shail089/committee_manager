@@ -51,7 +51,8 @@
         {% if meetings %}
         <ul>
             {% for meeting in meetings[:3] %}
-            <li>{{ meeting.committee.title }} - {{ meeting.date }} (Agenda: {{ meeting.agenda }})</li>
+            <li>{{ meeting.committee.code }} - {{ meeting.committee.title }} - {{ meeting.date }} (Agenda: {{
+                meeting.agenda }})</li>
             {% endfor %}
         </ul>
         {% else %}
