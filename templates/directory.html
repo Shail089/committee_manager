@@ -168,7 +168,20 @@
     </div>
 </div>
 
-<!-- Existing Experts -->
+<!-- Upload Excel Form -->
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Upload Directory Data</h5>
+        <form method="POST" action="{{ url_for('directory') }}" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="file" class="form-label">Upload Excel File</label>
+                <input type="file" class="form-control" name="file" accept=".xlsx">
+            </div>
+            <button type="submit" class="btn btn-primary">Upload</button>
+        </form>
+    </div>
+</div>
+
 <!-- Existing Experts -->
 <div class="card mt-4">
     <div class="card-header bg-dark text-white">Existing Experts</div>

@@ -47,7 +47,7 @@ def homepage():
         participations=participations,
         current_year=today.year   # ✅ pass year into template
     )
-
+    
 @app.route('/dashboard')
 def dashboard():
     nmcs = NationalMirrorCommittee.query.all()
@@ -84,9 +84,77 @@ def dashboard():
         past_count=past_count
     )
     
-@app.route('/directory')
+@app.route('/directory', methods=['GET', 'POST'])
 def directory():
-    # Management page
+    if request.method == 'POST':
+        file = request.files.get('file')
+        if file and file.filename.endswith('.xlsx'):
+            from openpyxl import load_workbook
+            wb = load_workbook(file)
+            ws = wb.active
+
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                nmc_code, nmc_title, sc_code, sc_title, wg_code, wg_title, expert_name, organisation, email, phone = row
+
+                if not email:
+                    continue
+
+                # Ensure NMC exists
+                nmc = None
+                if nmc_code and nmc_title:
+                    nmc = NationalMirrorCommittee.query.filter_by(code=nmc_code).first()
+                    if not nmc:
+                        nmc = NationalMirrorCommittee(code=nmc_code, title=nmc_title)
+                        db.session.add(nmc)
+                        db.session.flush()
+
+                # Ensure SC exists
+                sc = None
+                if sc_code and sc_title and nmc:
+                    sc = Committee.query.filter_by(code=sc_code).first()
+                    if not sc:
+                        sc = Committee(code=sc_code, title=sc_title, parent_id=None, nmc_id=nmc.id)
+                        db.session.add(sc)
+                        db.session.flush()
+
+                # Ensure WG exists (append SC code/title)
+                wg = None
+                if wg_code and wg_title and sc:
+                    full_wg_code = f"{sc.code}/{wg_code}"
+                    #full_wg_title = f"{sc.title}/{wg_title}"
+
+                    wg = Committee.query.filter_by(code=full_wg_code).first()
+                    if not wg:
+                        wg = Committee(
+                            code=full_wg_code,
+                            title=wg_title,
+                            parent_id=sc.id,
+                            nmc_id=sc.nmc_id
+                        )
+                        db.session.add(wg)
+                        db.session.flush()
+
+                # Ensure Expert exists
+                expert = Expert.query.filter_by(email=email).first()
+                if not expert:
+                    expert = Expert(name=expert_name, organisation=organisation, email=email, mobile=phone)
+                    db.session.add(expert)
+                    db.session.flush()
+
+                # Link Expert to WG if present, otherwise SC
+                target_committee = wg if wg else sc
+                if target_committee:
+                    membership = Membership.query.filter_by(
+                        expert_id=expert.id,
+                        committee_id=target_committee.id
+                    ).first()
+                    if not membership:
+                        db.session.add(Membership(expert_id=expert.id, committee_id=target_committee.id))
+
+            db.session.commit()
+            flash("Directory updated successfully!", "success")
+            return redirect(url_for('directory'))
+
     nmcs = NationalMirrorCommittee.query.all()
     scs = Committee.query.filter(Committee.parent_id == None).all()
     wgs = Committee.query.filter(Committee.parent_id != None).all()
@@ -705,4 +773,4 @@ if __name__ == "__main__":
     with app.app_context():
         #db.drop_all()
         db.create_all()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True)

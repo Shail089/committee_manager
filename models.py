@@ -37,17 +37,30 @@ class Expert(db.Model):
     memberships = db.relationship("Membership", back_populates="expert", lazy=True)
 
     def get_nmc_map(self):
-        """Return a dict {NMC_code: [SC/WG nominations]}"""
+        """
+        Return {NMC_code: [SC/WG nominations]} for this expert.
+        Ensures SCs and their WGs are grouped under the same NMC.
+        """
         nmc_map = {}
         for m in self.memberships:
             committee = m.committee
-            # Walk up hierarchy until top-level NMC
-            while committee.parent_id is not None:
-                committee = committee.parent
-            nmc_code = committee.nmc.code
+            if not committee:
+                continue
+
+            # Find the SC (top-level under NMC)
+            sc = committee if committee.parent_id is None else committee.parent
+            nmc = sc.nmc
+            nmc_code = nmc.code if nmc else "No NMC"
+
+            # Initialize list for this NMC
             if nmc_code not in nmc_map:
                 nmc_map[nmc_code] = []
-            nmc_map[nmc_code].append(f"{m.committee.code} - {m.committee.title}")
+
+            # Add SC/WG nomination
+            label = f"{committee.code} - {committee.title}"
+            if label not in nmc_map[nmc_code]:
+                nmc_map[nmc_code].append(label)
+
         return nmc_map
 
 

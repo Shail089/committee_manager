@@ -8,13 +8,13 @@ def announcement_email(meeting, recipients):
         recipients=recipients,
         html=f"""
             <p><strong>Dear Experts,</strong></p>
-            <p>The meeting of <strong>SC/WG - {meeting.committee.title}</strong> 
+            <p>The meeting of <strong>{meeting.committee.code} - {meeting.committee.title}</strong> 
             has been scheduled on <strong>{meeting.date}</strong>. 
             Please ensure participation and prepare reports for 
-            <strong>{meeting.committee.nmc.title}</strong>.</p>
+            <strong>{meeting.committee.nmc.code}-{meeting.committee.nmc.title}</strong>.</p>
             <p><strong>Best regards</strong><br>
             <strong>Sailendra Kumar Verma</strong><br>
-            <strong>Member Secretary, {meeting.committee.nmc.title}</strong></p>
+            <strong>Member Secretary, {meeting.committee.nmc.code}</strong></p>
         """
     )
 
@@ -27,12 +27,12 @@ def reminder_email_all(meeting, recipients):
         html=f"""
             <p><strong>Dear Experts,</strong></p>
             <p>This is a reminder that the meeting of 
-            <strong>SC/WG - {meeting.committee.title}</strong> will be held on 
+            <strong>{meeting.committee.code} - {meeting.committee.title}</strong> will be held on 
             <strong>{meeting.date}</strong>. Please ensure your participation and prepare your report for 
-            <strong>{meeting.committee.nmc.title}</strong>.</p>
+            <strong>{meeting.committee.nmc.code}-{meeting.committee.nmc.title}</strong>.</p>
             <p><strong>Best regards</strong><br>
             <strong>Sailendra Kumar Verma</strong><br>
-            <strong>Member Secretary, {meeting.committee.nmc.title}</strong></p>
+            <strong>Member Secretary, {meeting.committee.nmc.code}</strong></p>
         """
     )
 
@@ -45,12 +45,12 @@ def reminder_email_individual(meeting, expert):
         html=f"""
             <p><strong>Dear {expert.name},</strong></p>
             <p>This is a reminder that the meeting of 
-            <strong>SC/WG - {meeting.committee.title}</strong> will be held on 
+            <strong>{meeting.committee.code} - {meeting.committee.title}</strong> will be held on 
             <strong>{meeting.date}</strong>. As a registered expert, your participation is required and you are expected to present your report to 
-            <strong>{meeting.committee.nmc.title}</strong>.</p>
+            <strong>{meeting.committee.nmc.code}-{meeting.committee.nmc.title}</strong>.</p>
             <p><strong>Best regards</strong><br>
             <strong>Sailendra Kumar Verma</strong><br>
-            <strong>Member Secretary, {meeting.committee.nmc.title}</strong></p>
+            <strong>Member Secretary, {meeting.committee.nmc.code}</strong></p>
         """
     )
 
@@ -62,12 +62,12 @@ def completion_email(meeting, recipients):
         recipients=recipients,
         html=f"""
             <p><strong>Dear Experts,</strong></p>
-            <p>The meeting of <strong>SC/WG - {meeting.committee.title}</strong> held on 
+            <p>The meeting of <strong>{meeting.committee.code} - {meeting.committee.title}</strong> held on 
             <strong>{meeting.date}</strong> has been completed. You are requested to submit your participation status and reports to 
-            <strong>{meeting.committee.nmc.title}</strong> within <strong>10 days</strong>.</p>
+            <strong>{meeting.committee.nmc.code}-{meeting.committee.nmc.title}</strong>.</p>
             <p><strong>Best regards</strong><br>
             <strong>Sailendra Kumar Verma</strong><br>
-            <strong>Member Secretary, {meeting.committee.nmc.title}</strong></p>
+            <strong>Member Secretary, {meeting.committee.nmc.code}</strong></p>
         """
     )
 
@@ -80,11 +80,11 @@ def request_update_email(meeting, expert):
         recipients=[expert.email],
         html=f"""
             <p><strong>Dear {expert.name},</strong></p>
-            <p>Following the meeting of <strong>SC/WG - {meeting.committee.title}</strong> held on 
+            <p>Following the meeting of <strong>{meeting.committee.code} - {meeting.committee.title}</strong> held on 
             <strong>{meeting.date}</strong>, you are requested to submit your participation status and report to 
-            <strong>{meeting.committee.nmc.title}</strong> by <strong>{deadline.strftime('%d %B %Y')}</strong>.</p>
+            <strong>{meeting.committee.nmc.code}-{meeting.committee.nmc.title}</strong> by <strong>{deadline.strftime('%d %B %Y')}</strong>.</p>
             <p><strong>Best regards</strong><br>
             <strong>Sailendra Kumar Verma</strong><br>
-            <strong>Member Secretary, {meeting.committee.nmc.title}</strong></p>
+            <strong>Member Secretary, {meeting.committee.nmc.code}</strong></p>
         """
     )
