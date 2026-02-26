@@ -47,7 +47,7 @@ def homepage():
         participations=participations,
         current_year=today.year   # ✅ pass year into template
     )
-    
+
 @app.route('/dashboard')
 def dashboard():
     nmcs = NationalMirrorCommittee.query.all()
@@ -117,12 +117,10 @@ def directory():
                         db.session.add(sc)
                         db.session.flush()
 
-                # Ensure WG exists (append SC code/title)
+                # Ensure WG exists
                 wg = None
                 if wg_code and wg_title and sc:
                     full_wg_code = f"{sc.code}/{wg_code}"
-                    #full_wg_title = f"{sc.title}/{wg_title}"
-
                     wg = Committee.query.filter_by(code=full_wg_code).first()
                     if not wg:
                         wg = Committee(
@@ -137,7 +135,13 @@ def directory():
                 # Ensure Expert exists
                 expert = Expert.query.filter_by(email=email).first()
                 if not expert:
-                    expert = Expert(name=expert_name, organisation=organisation, email=email, mobile=phone)
+                    expert = Expert(
+                        name=expert_name,
+                        organisation=organisation,
+                        email=email,
+                        mobile=phone,
+                        is_active=True   # ensure new experts are active
+                    )
                     db.session.add(expert)
                     db.session.flush()
 
@@ -158,7 +162,7 @@ def directory():
     nmcs = NationalMirrorCommittee.query.all()
     scs = Committee.query.filter(Committee.parent_id == None).all()
     wgs = Committee.query.filter(Committee.parent_id != None).all()
-    experts = Expert.query.all()
+    experts = Expert.query.filter_by(is_active=True).all()   # only active experts
     memberships = Membership.query.all()
 
     return render_template(
@@ -249,6 +253,14 @@ def add_membership():
 
     return render_template('add_membership.html', nmcs=nmcs, experts=experts, scs=scs, wgs=wgs)
 
+@app.route('/delete_membership/<int:membership_id>', methods=['POST'])
+def delete_membership(membership_id):
+    membership = Membership.query.get_or_404(membership_id)
+    db.session.delete(membership)
+    db.session.commit()
+    flash('Membership removed successfully!', 'warning')
+    return redirect(url_for('directory'))
+
 # Add Expert
 @app.route('/add_expert', methods=['POST'])
 def add_expert():
@@ -286,30 +298,36 @@ def get_wgs(sc_id):
 def edit_expert(expert_id):
     expert = Expert.query.get_or_404(expert_id)
     committees = Committee.query.all()
+
     if request.method == 'POST':
-        expert.name = request.form['name']
-        expert.email = request.form['email']
+        expert.name = request.form.get('name')
+        expert.email = request.form.get('email')
         expert.mobile = request.form.get('mobile')
         expert.organisation = request.form.get('organisation')
-        committee_id = request.form.get('committee_id')
-        if committee_id:
-            Membership.query.filter_by(expert_id=expert.id).delete()
-            new_membership = Membership(expert_id=expert.id, committee_id=committee_id)
-            db.session.add(new_membership)
+
+        # Handle staged deletions
+        delete_ids = request.form.getlist('delete_memberships')
+        for mid in delete_ids:
+            membership = Membership.query.get(mid)
+            if membership and membership.expert_id == expert.id:
+                db.session.delete(membership)
+
         db.session.commit()
         flash('Expert updated successfully!', 'success')
-        return redirect(url_for('add_expert'))
+        return redirect(url_for('directory'))
+
+    # GET request → show edit form
     return render_template('edit_expert.html', expert=expert, committees=committees)
 
 # Delete Expert
 @app.route('/delete_expert/<int:expert_id>', methods=['POST'])
 def delete_expert(expert_id):
     expert = Expert.query.get_or_404(expert_id)
-    Membership.query.filter_by(expert_id=expert.id).delete()
-    db.session.delete(expert)
+    expert.is_active = False   # soft delete
     db.session.commit()
-    flash('Expert deleted successfully!', 'danger')
-    return redirect(url_for('add_expert'))
+    flash('Expert marked inactive successfully!', 'warning')
+    return redirect(url_for('directory'))
+
 
 # Add Meeting
 from datetime import date, datetime
@@ -669,82 +687,7 @@ def export_experts():
         download_name="experts_summary.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
-# Seed Data
-from datetime import date, timedelta
-
-@app.route('/seed')
-def seed_data():
-    if not NationalMirrorCommittee.query.first():
-        # Create NMCs
-        nmc1 = NationalMirrorCommittee(code="LITD 19", title="E-Learning")
-        nmc2 = NationalMirrorCommittee(
-            code="LITD 24",
-            title="Magnetic Components, Ferrite Materials, Piezoelectric and Frequency Control Devices"
-        )
-        db.session.add_all([nmc1, nmc2])
-        db.session.commit()
-
-        # Create SCs
-        sc1 = Committee(
-            code="ISO/IEC JTC 1/SC 36",
-            title="Information technology for learning, education and training",
-            nmc_id=nmc1.id,
-            parent_id=None
-        )
-        sc2 = Committee(
-            code="IEC/TC 49",
-            title="Piezoelectric, dielectric and electrostatic devices and associated materials for frequency control, selection and detection",
-            nmc_id=nmc2.id,
-            parent_id=None
-        )
-        sc3 = Committee(
-            code="IEC/TC 51",
-            title="Magnetic components, ferrite and magnetic powder materials",
-            nmc_id=nmc2.id,
-            parent_id=None
-        )
-        db.session.add_all([sc1, sc2, sc3])
-        db.session.commit()
-
-        # Create WGs
-        wg1 = Committee(code=f"{sc1.code}/WG 3", title="Learner information", parent_id=sc1.id, nmc_id=nmc1.id)
-        wg2 = Committee(code=f"{sc1.code}/WG 7", title="Culture, language and individual needs", parent_id=sc1.id, nmc_id=nmc1.id)
-        wg3 = Committee(code=f"{sc3.code}/WG 9", title="Inductive components", parent_id=sc3.id, nmc_id=nmc2.id)
-        wg4 = Committee(code=f"{sc3.code}/WG 10", title="Magnetic materials and components for EMC applications", parent_id=sc3.id, nmc_id=nmc2.id)
-        wg5 = Committee(code=f"{sc2.code}/WG 7", title="Piezoelectric, dielectric and electrostatic oscillators", parent_id=sc2.id, nmc_id=nmc2.id)
-        db.session.add_all([wg1, wg2, wg3, wg4, wg5])
-        db.session.commit()
-
-        # Experts
-        e1 = Expert(name="Dr. Alice", email="alice@example.com", mobile="1234567890", organisation="IIT Delhi")
-        e2 = Expert(name="Dr. Bob", email="bob@example.com", mobile="9876543210", organisation="IIT Madras")
-        e3 = Expert(name="Dr. Charlie", email="charlie@example.com", mobile="5555555555", organisation="BIS")
-        db.session.add_all([e1, e2, e3])
-        db.session.commit()
-
-        # Memberships
-        m1 = Membership(expert_id=e1.id, committee_id=sc1.id)
-        m2 = Membership(expert_id=e2.id, committee_id=wg1.id)
-        m3 = Membership(expert_id=e3.id, committee_id=sc2.id)
-        m4 = Membership(expert_id=e3.id, committee_id=wg3.id)
-        db.session.add_all([m1, m2, m3, m4])
-        db.session.commit()
-
-        # Meetings (some past, some upcoming)
-        today = date.today()
-        past1 = Meeting(committee_id=sc1.id, date=today - timedelta(days=30), agenda="Review of e-learning standards")
-        past2 = Meeting(committee_id=sc2.id, date=today - timedelta(days=10), agenda="Discussion on piezoelectric devices")
-        upcoming1 = Meeting(committee_id=wg1.id, date=today + timedelta(days=7), agenda="Learner information schema update")
-        upcoming2 = Meeting(committee_id=wg3.id, date=today + timedelta(days=15), agenda="Inductive components testing protocols")
-        upcoming3 = Meeting(committee_id=wg5.id, date=today + timedelta(days=45), agenda="Oscillator material improvements")
-
-        db.session.add_all([past1, past2, upcoming1, upcoming2, upcoming3])
-        db.session.commit()
-
-    flash("Database seeded successfully with committees, experts, memberships, and meetings!", "success")
-    return redirect(url_for('homepage'))
-
+    
 def send_completion_emails():
     today = date.today()
     past_meetings = Meeting.query.filter(

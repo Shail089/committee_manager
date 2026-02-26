@@ -9,65 +9,102 @@
     <a href="{{ url_for('add_meeting') }}" class="btn btn-outline-primary">+ Add Meeting</a>
 </div>
 
-<div class="row">
+<!-- Top Summary Cards -->
+<div class="row mb-4">
     <div class="col-md-3">
         <div class="card text-center mb-4">
             <div class="card-header">Total NMCs</div>
-            <div class="card-body">
-                <h3>{{ nmcs|length }}</h3>
-            </div>
+            <div class="card-body"><h3>{{ nmcs|length }}</h3></div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card text-center mb-4">
             <div class="card-header">Total SCs</div>
-            <div class="card-body">
-                <h3>{{ scs|length }}</h3>
-            </div>
+            <div class="card-body"><h3>{{ scs|length }}</h3></div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card text-center mb-4">
             <div class="card-header">Total WGs</div>
-            <div class="card-body">
-                <h3>{{ wgs|length }}</h3>
-            </div>
+            <div class="card-body"><h3>{{ wgs|length }}</h3></div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card text-center mb-4">
             <div class="card-header">Total Experts</div>
+            <div class="card-body"><h3>{{ experts|length }}</h3></div>
+        </div>
+    </div>
+</div>
+
+<!-- Upcoming Meetings & Reminders side-by-side -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card h-100" style="max-height: 250px; overflow-y: auto;">
+            <div class="card-header bg-primary text-white">Upcoming Meetings</div>
             <div class="card-body">
-                <h3>{{ experts|length }}</h3>
+                {% if meetings %}
+                <ul class="list-unstyled">
+                    {% for meeting in meetings[:5] %}
+                    <li>
+                        <strong>{{ meeting.committee.code }}</strong> - {{ meeting.committee.title }}<br>
+                        {{ meeting.date }} (Agenda: {{ meeting.agenda }})
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p>No upcoming meetings scheduled.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card h-100" style="max-height: 250px; overflow-y: auto;">
+            <div class="card-header bg-info text-white">Recent Reminders Sent</div>
+            <div class="card-body">
+                {% if participations %}
+                {% for p in participations if p.reminder_sent %}
+                <p>{{ p.expert.name }} reminded for {{ p.meeting.committee.title }} on {{ p.meeting.date }}</p>
+                {% endfor %}
+                {% else %}
+                <p>No reminders sent recently.</p>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<!-- Upcoming Meetings -->
+<!-- NMC Wise Numeric Summary -->
 <div class="card mb-4">
-    <div class="card-header bg-primary text-white">Upcoming Meetings</div>
+    <div class="card-header bg-dark text-white">NMC Wise Summary</div>
     <div class="card-body">
-        {% if meetings %}
-        <ul>
-            {% for meeting in meetings[:3] %}
-            <li>{{ meeting.committee.code }} - {{ meeting.committee.title }} - {{ meeting.date }} (Agenda: {{
-                meeting.agenda }})</li>
-            {% endfor %}
-        </ul>
-        {% else %}
-        <p>No upcoming meetings scheduled.</p>
-        {% endif %}
-    </div>
-</div>
-
-<!-- Recent Reminders -->
-<div class="card mb-4">
-    <div class="card-header bg-info text-white">Recent Reminders Sent</div>
-    <div class="card-body">
-        {% for p in participations if p.reminder_sent %}
-        <p>{{ p.expert.name }} reminded for {{ p.meeting.committee.title }} on {{ p.meeting.date }}</p>
-        {% endfor %}
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>NMC</th>
+                        <th>SCs</th>
+                        <th>WGs</th>
+                        <th>Experts</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for nmc in nmcs %}
+                    <tr>
+                        <td>{{ nmc.code }} - {{ nmc.title }}</td>
+                        <td>{{ nmc.subcommittees|selectattr("parent_id","equalto",None)|list|length }}</td>
+                        <td>{{ nmc.subcommittees|rejectattr("parent_id","equalto",None)|list|length }}</td>
+                        <td>
+                            {{ memberships|selectattr("committee.nmc_id","equalto",nmc.id)
+                                          |map(attribute="expert_id")
+                                          |unique|list|length }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
@@ -78,7 +115,6 @@
         <a href="{{ url_for('export_experts') }}" class="btn btn-light btn-sm">Download Excel</a>
     </div>
     <div class="card-body">
-        <!-- ✅ Responsive scroll container -->
         <div class="table-responsive">
             <table class="table table-bordered table-hover align-middle">
                 <thead class="table-dark">
@@ -100,13 +136,13 @@
                     {% for nmc_code, nominations in nmc_map.items() %}
                     <tr>
                         {% if loop.first %}
-                        <td rowspan="{{ row_count }}" style="white-space: normal;">{{ expert.name }}</td>
-                        <td rowspan="{{ row_count }}" style="white-space: normal;">{{ expert.email }}</td>
-                        <td rowspan="{{ row_count }}" style="white-space: normal;">{{ expert.mobile or "—" }}</td>
-                        <td rowspan="{{ row_count }}" style="white-space: normal;">{{ expert.organisation }}</td>
+                        <td rowspan="{{ row_count }}">{{ expert.name }}</td>
+                        <td rowspan="{{ row_count }}">{{ expert.email }}</td>
+                        <td rowspan="{{ row_count }}">{{ expert.mobile or "—" }}</td>
+                        <td rowspan="{{ row_count }}">{{ expert.organisation }}</td>
                         {% endif %}
                         <td><span class="badge bg-success">{{ nmc_code }}</span></td>
-                        <td style="white-space: normal;">
+                        <td>
                             {% for nom in nominations %}
                             <span class="badge bg-info text-dark me-1">{{ nom }}</span>
                             {% endfor %}

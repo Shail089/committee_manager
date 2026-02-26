@@ -33,6 +33,7 @@ class Expert(db.Model):
     email = db.Column(db.String(120), unique=True)
     mobile = db.Column(db.String(20))
     organisation = db.Column(db.String(200))
+    is_active = db.Column(db.Boolean, default=True)  # NEW FIELD
 
     memberships = db.relationship("Membership", back_populates="expert", lazy=True)
 
