@@ -10,29 +10,162 @@
 </div>
 
 <!-- Top Summary Cards -->
-<div class="row mb-4">
-    <div class="col-md-3">
+<div class="row mb-4 justify-content-around">
+    <!-- Total NMCs -->
+    <div class="col-md-2">
         <div class="card text-center mb-4">
             <div class="card-header">Total NMCs</div>
-            <div class="card-body"><h3>{{ nmcs|length }}</h3></div>
+            <div class="card-body">
+                <h3>
+                    <a role="button" data-bs-toggle="modal" data-bs-target="#nmcModal">
+                        {{ total_nmc }}
+                    </a>
+                </h3>
+            </div>
         </div>
     </div>
-    <div class="col-md-3">
+
+    <!-- Total SCs -->
+    <div class="col-md-2">
         <div class="card text-center mb-4">
             <div class="card-header">Total SCs</div>
-            <div class="card-body"><h3>{{ scs|length }}</h3></div>
+            <div class="card-body">
+                <h3>
+                    <a role="button" data-bs-toggle="modal" data-bs-target="#scModal">
+                        {{ total_sc }}
+                    </a>
+                </h3>
+            </div>
         </div>
     </div>
-    <div class="col-md-3">
+
+    <!-- Total WGs -->
+    <div class="col-md-2">
         <div class="card text-center mb-4">
             <div class="card-header">Total WGs</div>
-            <div class="card-body"><h3>{{ wgs|length }}</h3></div>
+            <div class="card-body">
+                <h3>
+                    <a role="button" data-bs-toggle="modal" data-bs-target="#wgModal">
+                        {{ total_wg }}
+                    </a>
+                </h3>
+            </div>
         </div>
     </div>
-    <div class="col-md-3">
+
+    <!-- Total Memberships -->
+    <div class="col-md-2">
+        <div class="card text-center mb-4">
+            <div class="card-header">Total Memberships</div>
+            <div class="card-body">
+                <h3>
+                    <a role="button" data-bs-toggle="modal" data-bs-target="#membershipModal">
+                        {{ total_memberships }}
+                    </a>
+                </h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Total Experts -->
+    <div class="col-md-2">
         <div class="card text-center mb-4">
             <div class="card-header">Total Experts</div>
-            <div class="card-body"><h3>{{ experts|length }}</h3></div>
+            <div class="card-body">
+                <h3>
+                    <a role="button" data-bs-toggle="modal" data-bs-target="#expertModal">
+                        {{ total_experts }}
+                    </a>
+                </h3>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- NMC Modal -->
+<div class="modal fade" id="nmcModal" tabindex="-1" aria-labelledby="nmcModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="nmcModalLabel">National Mirror Committees</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% for nmc in nmcs %}
+                <p><strong>{{ nmc.code }}</strong> - {{ nmc.title }}</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SC Modal -->
+<div class="modal fade" id="scModal" tabindex="-1" aria-labelledby="scModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="scModalLabel">Subcommittees</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% for nmc in nmcs %}
+                {% for sc in nmc.subcommittees if sc.parent_id is none %}
+                <p><strong>{{ sc.code }}</strong> - {{ sc.title }}</p>
+                {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- WG Modal -->
+<div class="modal fade" id="wgModal" tabindex="-1" aria-labelledby="wgModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="wgModalLabel">Working Groups</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% for nmc in nmcs %}
+                {% for wg in nmc.subcommittees if wg.parent_id is not none %}
+                <p><strong>{{ wg.code }}</strong> - {{ wg.title }}</p>
+                {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Memberships Modal -->
+<div class="modal fade" id="membershipModal" tabindex="-1" aria-labelledby="membershipModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="membershipModalLabel">Memberships</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% for m in memberships %}
+                <p>{{ m.expert.name }} → {{ m.committee.title }}</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Experts Modal -->
+<div class="modal fade" id="expertModal" tabindex="-1" aria-labelledby="expertModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="expertModalLabel">Experts</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% for expert in experts %}
+                <p><strong>{{ expert.name }}</strong> - {{ expert.organisation }}</p>
+                {% endfor %}
+            </div>
         </div>
     </div>
 </div>
@@ -76,29 +209,79 @@
 </div>
 
 <!-- NMC Wise Numeric Summary -->
-<div class="card mb-4">
-    <div class="card-header bg-dark text-white">NMC Wise Summary</div>
+<div class="card mb-4 shadow-sm">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <span>NMC Wise Summary</span>
+        <button id="exportBtn" class="btn btn-sm btn-light text-dark">
+            <i class="bi bi-download"></i> Export
+        </button>
+    </div>
+
     <div class="card-body">
+        <!-- Table -->
         <div class="table-responsive">
             <table class="table table-bordered table-hover align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th>NMC</th>
-                        <th>SCs</th>
-                        <th>WGs</th>
-                        <th>Experts</th>
+                        <th style="width:70%">NMC / SC / WG</th>
+                        <th style="width:10%">SCs</th>
+                        <th style="width:10%">WGs</th>
+                        <th style="width:10%">Experts</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for nmc in nmcs %}
-                    <tr>
-                        <td>{{ nmc.code }} - {{ nmc.title }}</td>
-                        <td>{{ nmc.subcommittees|selectattr("parent_id","equalto",None)|list|length }}</td>
-                        <td>{{ nmc.subcommittees|rejectattr("parent_id","equalto",None)|list|length }}</td>
+                    {% for nmc in nmc_summary %}
+                    <!-- NMC row -->
+                    <tr data-bs-toggle="collapse" data-bs-target="#nmcCollapse{{ nmc.nmc.id }}"
+                        class="cursor-pointer bg-nmc">
                         <td>
-                            {{ memberships|selectattr("committee.nmc_id","equalto",nmc.id)
-                                          |map(attribute="expert_id")
-                                          |unique|list|length }}
+                            <span class="toggle-icon me-2">&#9654;</span>
+                            <strong>{{ nmc.nmc.code }} - {{ nmc.nmc.title }}</strong>
+                        </td>
+                        <td>{{ nmc.sc_count }}</td>
+                        <td>{{ nmc.wg_count }}</td>
+                        <td>{{ nmc.expert_count }}</td>
+                    </tr>
+
+                    <!-- SC rows inside NMC collapse -->
+                    <tr class="collapse" id="nmcCollapse{{ nmc.nmc.id }}">
+                        <td colspan="4" class="p-0">
+                            <table class="table mb-0">
+                                <tbody>
+                                    {% for sc in nmc.scs %}
+                                    <!-- SC row -->
+                                    <tr data-bs-toggle="collapse" data-bs-target="#scCollapse{{ sc.sc.id }}"
+                                        class="cursor-pointer bg-sc">
+                                        <td class="ps-4">
+                                            <span class="toggle-icon me-2">&#9654;</span>
+                                            {{ sc.sc.code }} - {{ sc.sc.title }}
+                                        </td>
+                                        <td>–</td>
+                                        <td>{{ sc.wg_count }}</td>
+                                        <td>{{ sc.expert_count }}</td>
+                                    </tr>
+
+                                    <!-- WG rows inside SC collapse -->
+                                    <tr class="collapse" id="scCollapse{{ sc.sc.id }}">
+                                        <td colspan="4" class="p-0">
+                                            <table class="table mb-0">
+                                                <tbody>
+                                                    {% for wg in sc.wgs %}
+                                                    <tr class="bg-wg">
+                                                        <td class="ps-5 text-muted">{{ wg.wg.code }} - {{ wg.wg.title }}
+                                                        </td>
+                                                        <td>–</td>
+                                                        <td>–</td>
+                                                        <td>{{ wg.expert_count }}</td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </td>
                     </tr>
                     {% endfor %}
@@ -107,6 +290,36 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Attach arrow updates only to the collapse target itself
+        document.querySelectorAll(".collapse").forEach(function (collapseEl) {
+            collapseEl.addEventListener("show.bs.collapse", function (e) {
+                // Prevent bubbling from child collapses
+                if (e.target !== collapseEl) return;
+
+                const triggerRow = document.querySelector("[data-bs-target='#" + collapseEl.id + "']");
+                if (triggerRow) {
+                    const icon = triggerRow.querySelector(".toggle-icon");
+                    if (icon) icon.innerHTML = "&#9660;"; // down arrow
+                }
+            });
+
+            collapseEl.addEventListener("hide.bs.collapse", function (e) {
+                // Prevent bubbling from child collapses
+                if (e.target !== collapseEl) return;
+
+                const triggerRow = document.querySelector("[data-bs-target='#" + collapseEl.id + "']");
+                if (triggerRow) {
+                    const icon = triggerRow.querySelector(".toggle-icon");
+                    if (icon) icon.innerHTML = "&#9654;"; // right arrow
+                }
+            });
+        });
+    });
+</script>
+
 
 <!-- Experts and their Nominations -->
 <div class="card mt-4">
@@ -165,4 +378,136 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.getElementById("exportBtn").addEventListener("click", function () {
+        // Get table element
+        let table = document.querySelector(".table");
+
+        // Convert table to worksheet
+        let wb = XLSX.utils.book_new();
+        let ws = XLSX.utils.table_to_sheet(table);
+
+        // Append worksheet to workbook
+        XLSX.utils.book_append_sheet(wb, ws, "NMC Summary");
+
+        // Export to Excel file
+        XLSX.writeFile(wb, "nmc_summary.xlsx");
+    });
+</script>
+
+<!-- NMC Modal -->
+<div class="modal fade" id="nmcModal" tabindex="-1" aria-labelledby="nmcModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="nmcModalLabel">National Mirror Committees</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ul>
+                    {% for nmc in nmcs %}
+                    <li>{{ nmc.code }} - {{ nmc.title }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SC Modal -->
+<div class="modal fade" id="scModal" tabindex="-1" aria-labelledby="scModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="scModalLabel">Subcommittees</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ul>
+                    {% for nmc in nmcs %}
+                    {% for sc in nmc.subcommittees if sc.parent_id is none %}
+                    <li>{{ sc.code }} - {{ sc.title }}</li>
+                    {% endfor %}
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- WG Modal -->
+<div class="modal fade" id="wgModal" tabindex="-1" aria-labelledby="wgModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="wgModalLabel">Working Groups</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ul>
+                    {% for nmc in nmcs %}
+                    {% for wg in nmc.subcommittees if wg.parent_id is not none %}
+                    <li>{{ wg.code }} - {{ wg.title }}</li>
+                    {% endfor %}
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Membership Modal -->
+<div class="modal fade" id="membershipModal" tabindex="-1" aria-labelledby="membershipModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="membershipModalLabel">Memberships</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ul>
+                    {% for m in memberships %}
+                    <li>{{ m.expert.name }} → {{ m.committee.title }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Expert Modal -->
+<div class="modal fade" id="expertModal" tabindex="-1" aria-labelledby="expertModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="expertModalLabel">Experts</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ul>
+                    {% for expert in experts %}
+                    <li>{{ expert.name }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}

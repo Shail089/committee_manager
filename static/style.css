@@ -88,3 +88,32 @@ body {
     border: 1px solid #004085 !important;
     font-weight: 600;
 }
+
+.table tr.bg-nmc td {
+    background-color: #b1b3ab !important;
+    color: #1b1a1a;
+    /* optional for contrast */
+}
+
+.table tr.bg-sc td {
+    background-color: #fff8dc !important;
+}
+
+.table tr.bg-wg td {
+    background-color: #f5f5f5 !important;
+}
+
+.offcanvas-center {
+    width: 80%;
+    /* take 80% of viewport width */
+    max-width: 1200px;
+    /* optional cap */
+    margin: 0 auto;
+    /* center horizontally */
+    left: 10%;
+    /* push it into center (100% - 80% = 20%, half on each side) */
+    right: auto;
+    /* override Bootstrap's right anchoring */
+    border-radius: 8px;
+    /* optional: rounded corners */
+}

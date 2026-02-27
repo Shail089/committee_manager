@@ -1,21 +1,29 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1 class="mb-4">Schedule Meeting</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">Schedule Meeting</h1>
+    <!-- Import Meetings from Excel -->
+    <form method="POST" action="{{ url_for('import_meetings') }}" enctype="multipart/form-data" class="d-inline">
+        <label class="btn btn-sm btn-outline-success mb-0">
+            <i class="bi bi-upload"></i> Import Meetings (Excel)
+            <input type="file" name="excelFile" accept=".xlsx,.xls" hidden onchange="this.form.submit()">
+        </label>
+    </form>
+</div>
 
+<!-- Manual Add Meeting Form -->
 <form method="POST">
     <div class="mb-3">
         <label for="committee_id" class="form-label">Committee (SC or WG)</label>
         <select name="committee_id" id="committee_id" class="form-select" required>
             {% for sc in scs %}
-            <!-- SC option -->
-            <option value="{{ sc.id }}" class="sc-option">
+            <option value="{{ sc.id }}">
                 SC: {{ sc.code }} - {{ sc.title }} (NMC: {{ sc.nmc.code }})
             </option>
-            <!-- WG options under this SC -->
             {% for wg in sc.children %}
             <option value="{{ wg.id }}">
-                &nbsp;&nbsp;WG: {{ sc.code }}/{{ wg.code }} - {{ wg.title }} (NMC: {{ sc.nmc.code }})
+                &nbsp;&nbsp;WG: {{ wg.code }} - {{ wg.title }} (NMC: {{ sc.nmc.code }})
             </option>
             {% endfor %}
             {% endfor %}
@@ -23,8 +31,18 @@
     </div>
 
     <div class="mb-3">
+        <label for="meeting_no" class="form-label">Meeting No</label>
+        <input type="text" class="form-control" id="meeting_no" name="meeting_no" required>
+    </div>
+
+    <div class="mb-3">
         <label for="date" class="form-label">Meeting Date</label>
         <input type="date" class="form-control" id="date" name="date" required>
+    </div>
+
+    <div class="mb-3">
+        <label for="registration_last_date" class="form-label">Registration Last Date</label>
+        <input type="date" class="form-control" id="registration_last_date" name="registration_last_date" required>
     </div>
 
     <div class="mb-3">
@@ -38,71 +56,119 @@
 <hr>
 <h2 class="mt-4">Meetings by NMC</h2>
 
-{% for nmc in nmcs %}
-<div class="card mt-3">
-    <div class="card-header bg-secondary text-white">
-        {{ nmc.code }} - {{ nmc.title }}
-    </div>
-    <div class="card-body">
-        <!-- Upcoming Meetings -->
-        <h5>Upcoming Meetings</h5>
-        {% if nmc_meetings[nmc.id].upcoming %}
-        <table class="table table-sm table-bordered">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Committee</th>
-                    <th>Agenda</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for meeting in nmc_meetings[nmc.id].upcoming %}
-                <tr>
-                    <td>{{ meeting.date }}</td>
-                    <td>{{ meeting.committee.code }} - {{ meeting.committee.title }}</td>
-                    <td>{{ meeting.agenda }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p class="text-muted">No upcoming meetings.</p>
-        {% endif %}
+<!-- NMC Tabs -->
+<ul class="nav nav-tabs" role="tablist">
+    {% for nmc in nmcs %}
+    <li class="nav-item">
+        <a class="nav-link {% if loop.first %}active{% endif %}" data-bs-toggle="tab" href="#nmc-{{ nmc.id }}"
+            role="tab">
+            {{ nmc.code }}
+        </a>
+    </li>
+    {% endfor %}
+</ul>
 
-        <!-- Past Meetings -->
-        <h5 class="mt-3">Past Meetings</h5>
-        {% if nmc_meetings[nmc.id].past %}
-        <table class="table table-sm table-bordered">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Committee</th>
-                    <th>Agenda</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for meeting in nmc_meetings[nmc.id].past %}
-                <tr>
-                    <td>{{ meeting.date }}</td>
-                    <td>{{ meeting.committee.code }} - {{ meeting.committee.title }}</td>
-                    <td>{{ meeting.agenda }}</td>
-                    <td>
-                        {% if meeting.completion_sent %}
-                        <span class="badge bg-success">Completion Email Sent</span>
+<div class="tab-content mt-3">
+    {% for nmc in nmcs %}
+    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="nmc-{{ nmc.id }}" role="tabpanel">
+
+        {% for code, meetings in nmc_meetings[nmc.id].items() %}
+        <div class="card mt-3">
+            <!-- Use darker header for contrast -->
+            <div class="card-header bg-dark text-white">
+                <strong>{{ code }} - {{ meetings.title }}</strong>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Upcoming (left) -->
+                    <div class="col-md-6">
+                        <h6>Most Recent Upcoming</h6>
+                        {% if meetings.upcoming_one %}
+                        <div class="card border-success mb-2">
+                            <div class="card-body d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ meetings.upcoming_one.meeting_no }}</strong> —
+                                    <span class="badge bg-success">{{ meetings.upcoming_one.date }}</span>
+                                    <p class="mb-0"><small>{{ meetings.upcoming_one.agenda }}</small></p>
+                                </div>
+                                <!-- Inline button -->
+                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse"
+                                    data-bs-target="#participation-upcoming-{{ meetings.upcoming_one.id }}">
+                                    Check Status
+                                </button>
+                            </div>
+                            <div class="collapse mt-2" id="participation-upcoming-{{ meetings.upcoming_one.id }}">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Expert</th>
+                                            <th>Reminder Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for p in participations if p.meeting_id == meetings.upcoming_one.id %}
+                                        <tr>
+                                            <td>{{ p.expert.name }}</td>
+                                            <td>{% if p.reminder_sent %}✔{% else %}✘{% endif %}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                         {% else %}
-                        <span class="badge bg-danger">Pending Completion Email</span>
+                        <p class="text-muted">No upcoming meeting.</p>
                         {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p class="text-muted">No past meetings.</p>
-        {% endif %}
-    </div>
-</div>
-{% endfor %}
+                    </div>
 
+                    <!-- Past (right) -->
+                    <div class="col-md-6">
+                        <h6>Most Recent Past</h6>
+                        {% if meetings.past_one %}
+                        <div class="card border-secondary mb-2">
+                            <div class="card-body d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ meetings.past_one.meeting_no }}</strong> —
+                                    <span class="badge bg-secondary">{{ meetings.past_one.date }}</span>
+                                    <p class="mb-0"><small>{{ meetings.past_one.agenda }}</small></p>
+                                </div>
+                                <!-- Inline button -->
+                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse"
+                                    data-bs-target="#participation-past-{{ meetings.past_one.id }}">
+                                    View Participation
+                                </button>
+                            </div>
+                            <div class="collapse mt-2" id="participation-past-{{ meetings.past_one.id }}">
+                                <table class="table table-sm table-hover table-bordered align-middle">
+                                    <thead class="table-light text-center">
+                                        <tr>
+                                            <th>Expert</th>
+                                            <th>Attendance</th>
+                                            <th>Report</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for p in participations if p.meeting_id == meetings.past_one.id %}
+                                        <tr>
+                                            <td>{{ p.expert.name }}</td>
+                                            <td>{% if p.attendance %}✔{% else %}✘{% endif %}</td>
+                                            <td>{% if p.report_submitted %}✔{% else %}✘{% endif %}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% else %}
+                        <p class="text-muted">No past meeting.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+    </div>
+    {% endfor %}
+</div>
 {% endblock %}

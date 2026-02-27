@@ -74,17 +74,26 @@ class Membership(db.Model):
     expert = db.relationship("Expert", back_populates="memberships")
     committee = db.relationship("Committee", back_populates="memberships")
 
+    @property
+    def nmc_id(self):
+        return self.committee.nmc_id
 
 class Meeting(db.Model):
     __tablename__ = "meeting"
-    id = db.Column(db.Integer, primary_key=True)
-    committee_id = db.Column(db.Integer, db.ForeignKey("committee.id"), nullable=False)
-    date = db.Column(db.Date, nullable=False)
-    agenda = db.Column(db.Text, nullable=True)
 
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Link to committee (SC or WG)
+    committee_id = db.Column(db.Integer, db.ForeignKey("committee.id"), nullable=False)
     committee = db.relationship("Committee", backref="meetings")
 
-    # NEW FIELD
+    # Meeting details
+    meeting_no = db.Column(db.String(50), nullable=False)  # e.g. "SC-01", "WG-02"
+    date = db.Column(db.Date, nullable=False)
+    registration_last_date = db.Column(db.Date, nullable=False)
+    agenda = db.Column(db.Text, nullable=True)
+
+    # Status
     completion_sent = db.Column(db.Boolean, default=False)
 
 

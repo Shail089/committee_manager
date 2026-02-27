@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, Response, flash, send_file
+from flask import Flask, render_template, request, redirect, url_for, Response, flash, send_file, render_template
 from models import db, Expert, Committee, Membership, Meeting, Participation, NationalMirrorCommittee
 from apscheduler.schedulers.background import BackgroundScheduler
 import csv
 from datetime import date, datetime
 from openpyxl import Workbook
+from flask_mail import Mail, Message
 import io
 from emails import (
     announcement_email,
@@ -25,27 +26,70 @@ def inject_current_year():
 
 @app.route('/')
 def homepage():
-    # High-level summary view
-    nmcs = NationalMirrorCommittee.query.all()
-    scs = Committee.query.filter(Committee.parent_id == None).all()
-    wgs = Committee.query.filter(Committee.parent_id != None).all()
-    experts = Expert.query.all()
-
     today = date.today()
 
-    # ✅ Only future meetings
+    nmcs = NationalMirrorCommittee.query.all()
+    memberships = Membership.query.all()
+    experts = Expert.query.all()
     meetings = Meeting.query.filter(Meeting.date >= today).order_by(Meeting.date.asc()).all()
     participations = Participation.query.all()
+
+    # Totals
+    total_nmc = len(nmcs)
+    total_sc = sum(len([sc for sc in nmc.subcommittees if sc.parent_id is None]) for nmc in nmcs)
+    total_wg = sum(len([wg for wg in nmc.subcommittees if wg.parent_id is not None]) for nmc in nmcs)
+    total_memberships = len(memberships)
+    total_experts = len(experts)
+    unique_expert_ids = {m.expert_id for m in memberships}
+    total_unique_experts = len(unique_expert_ids)
+
+    # Build summary for each NMC
+    nmc_summary = []
+    for nmc in nmcs:
+        expert_ids = {m.expert_id for m in memberships if m.committee and m.committee.nmc_id == nmc.id}
+        scs = [sc for sc in nmc.subcommittees if sc.parent_id is None]
+        wg_count = len([wg for wg in nmc.subcommittees if wg.parent_id is not None])
+
+        sc_summary = []
+        for sc in scs:
+            sc_expert_ids = {m.expert_id for m in memberships if m.committee_id == sc.id}
+            wg_summary = []
+            for wg in sc.children:
+                wg_expert_ids = {m.expert_id for m in memberships if m.committee_id == wg.id}
+                wg_summary.append({
+                    "wg": wg,
+                    "expert_count": len(wg_expert_ids)
+                })
+            sc_summary.append({
+                "sc": sc,
+                "wg_count": len(sc.children),
+                "expert_count": len(sc_expert_ids),
+                "wgs": wg_summary
+            })
+
+        nmc_summary.append({
+            "nmc": nmc,
+            "sc_count": len(scs),
+            "wg_count": wg_count,
+            "expert_count": len(expert_ids),
+            "scs": sc_summary
+        })
 
     return render_template(
         'index.html',
         nmcs=nmcs,
-        scs=scs,
-        wgs=wgs,
+        memberships=memberships,
         experts=experts,
         meetings=meetings,
         participations=participations,
-        current_year=today.year   # ✅ pass year into template
+        nmc_summary=nmc_summary,
+        total_nmc=total_nmc,
+        total_sc=total_sc,
+        total_wg=total_wg,
+        total_memberships=total_memberships,
+        total_experts=total_experts,
+        total_unique_experts=total_unique_experts,
+        current_year=today.year
     )
 
 @app.route('/dashboard')
@@ -70,8 +114,10 @@ def dashboard():
         past_count += len(past)
 
         nmc_meetings[nmc.id] = {
-            "upcoming": sorted(upcoming, key=lambda m: m.date),
-            "past": sorted(past, key=lambda m: m.date, reverse=True)
+            "upcoming_preview": sorted(upcoming, key=lambda m: m.date)[:2],
+            "upcoming_all": sorted(upcoming, key=lambda m: m.date),
+            "past_preview": sorted(past, key=lambda m: m.date, reverse=True)[:2],
+            "past_all": sorted(past, key=lambda m: m.date, reverse=True)
         }
 
     participations = Participation.query.all()
@@ -330,11 +376,6 @@ def delete_expert(expert_id):
 
 
 # Add Meeting
-from datetime import date, datetime
-from flask import request, redirect, url_for, flash, render_template
-from flask_mail import Mail, Message
-
-from flask_mail import Mail, Message
 
 app.config['MAIL_SERVER'] = 'smtp.mgovcloud.in'   # or smtp.zoho.in / smtp.zoho.eu depending on your domain
 app.config['MAIL_PORT'] = 587                 # TLS port
@@ -351,59 +392,172 @@ mail = Mail(app)
 def add_meeting():
     if request.method == 'POST':
         committee_id = request.form['committee_id']
+        meeting_no = request.form['meeting_no']
         date_str = request.form['date']
+        reg_last_date_str = request.form['registration_last_date']
         agenda = request.form['agenda']
 
         try:
             meeting_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            reg_last_date = datetime.strptime(reg_last_date_str, "%Y-%m-%d").date()
         except ValueError:
             flash("Invalid date format. Please use YYYY-MM-DD.", "danger")
             return redirect(url_for('add_meeting'))
 
-        meeting = Meeting(committee_id=committee_id, date=meeting_date, agenda=agenda)
+        # Create meeting
+        meeting = Meeting(
+            committee_id=committee_id,
+            meeting_no=meeting_no,
+            date=meeting_date,
+            registration_last_date=reg_last_date,
+            agenda=agenda
+        )
         db.session.add(meeting)
         db.session.commit()
 
         # Create participations
-        memberships = Membership.query.filter_by(committee_id=committee_id).all()
+        committee = Committee.query.get(committee_id)
+        memberships = []
+
+        if committee.parent_id is None:
+            # SC meeting → only SC experts
+            memberships = Membership.query.filter_by(committee_id=committee.id).all()
+        else:
+            # WG meeting → only WG experts
+            memberships = Membership.query.filter_by(committee_id=committee.id).all()
+
         for m in memberships:
             participation = Participation(meeting_id=meeting.id, expert_id=m.expert_id)
             db.session.add(participation)
         db.session.commit()
 
-        # Collect recipient emails
+        # Send announcement email
         participations = Participation.query.filter_by(meeting_id=meeting.id).all()
         recipient_emails = [p.expert.email for p in participations]
-
-        # Send announcement email
         msg = announcement_email(meeting, recipient_emails)
         mail.send(msg)
 
         flash('Meeting scheduled, participation prepared, and announcement email sent!', 'success')
         return redirect(url_for('add_meeting'))
 
-    # Prepare upcoming/past meetings for template
+    # Prepare upcoming/past meetings grouped by SC/WG
     scs = Committee.query.filter_by(parent_id=None).all()
     nmcs = NationalMirrorCommittee.query.all()
     today = date.today()
     nmc_meetings = {}
+
     for nmc in nmcs:
-        meetings_set = set()
+        nmc_meetings[nmc.id] = {}
+
+        # SCs
         for sc in nmc.subcommittees:
-            meetings_set.update(sc.meetings)
+            upcoming = sorted([m for m in sc.meetings if m.date >= today], key=lambda m: m.date)
+            past = sorted([m for m in sc.meetings if m.date < today], key=lambda m: m.date, reverse=True)
+
+            nmc_meetings[nmc.id][sc.code] = {
+                "title": sc.title,
+                "upcoming_one": upcoming[0] if upcoming else None,
+                "past_one": past[0] if past else None,
+                "upcoming_all": upcoming,
+                "past_all": past
+            }
+
+            # WGs under SC
             for wg in sc.children:
-                meetings_set.update(wg.meetings)
+                upcoming = sorted([m for m in wg.meetings if m.date >= today], key=lambda m: m.date)
+                past = sorted([m for m in wg.meetings if m.date < today], key=lambda m: m.date, reverse=True)
 
-        upcoming = [m for m in meetings_set if m.date >= today]
-        past = [m for m in meetings_set if m.date < today]
+                nmc_meetings[nmc.id][wg.code] = {
+                    "title": wg.title,
+                    "upcoming_one": upcoming[0] if upcoming else None,
+                    "past_one": past[0] if past else None,
+                    "upcoming_all": upcoming,
+                    "past_all": past
+                }
 
-        nmc_meetings[nmc.id] = {
-            "upcoming": sorted(upcoming, key=lambda m: m.date),
-            "past": sorted(past, key=lambda m: m.date, reverse=True)
-        }
+    return render_template(
+        'meetings.html',
+        scs=scs,
+        nmcs=nmcs,
+        nmc_meetings=nmc_meetings,
+        participations=Participation.query.all()
+    )
+        
+@app.route('/import_meetings', methods=['POST'])
+def import_meetings():
+    file = request.files.get('excelFile')
+    if not file or not file.filename.endswith('.xlsx'):
+        flash("No Excel file uploaded", "danger")
+        return redirect(url_for('add_meeting'))
 
-    return render_template('meetings.html', scs=scs, nmcs=nmcs, nmc_meetings=nmc_meetings)
+    from openpyxl import load_workbook
+    wb = load_workbook(file)
+    ws = wb.active
 
+    # Expected columns: NMC, SC, WG, Meeting No, Meeting Date, Registration Last Date, Agenda
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        nmc_code, sc_code, wg_code, meeting_no, meeting_date_val, reg_date_val, agenda = row
+
+        if not sc_code and not wg_code:
+            continue
+
+        # --- Meeting Date ---
+        if isinstance(meeting_date_val, datetime):
+            meeting_date = meeting_date_val.date()
+        else:
+            try:
+                meeting_date = datetime.strptime(str(meeting_date_val).strip(), "%d-%m-%Y").date()
+            except Exception:
+                flash(f"Invalid meeting date format for SC={sc_code}, WG={wg_code}", "danger")
+                continue
+
+        # --- Registration Last Date ---
+        reg_last_date = None
+        if reg_date_val:
+            if isinstance(reg_date_val, datetime):
+                reg_last_date = reg_date_val.date()
+            else:
+                try:
+                    reg_last_date = datetime.strptime(str(reg_date_val).strip(), "%d-%m-%Y").date()
+                except Exception:
+                    flash(f"Invalid registration date format for SC={sc_code}, WG={wg_code}", "warning")
+
+        # --- Committee Lookup ---
+        committee = None
+        if wg_code and str(wg_code).strip() != "":
+            # WG code is just "WG 3" etc., so append to SC code
+            full_wg_code = f"{sc_code.strip()}/{wg_code.strip()}"
+            committee = Committee.query.filter_by(code=full_wg_code).first()
+        else:
+            # SC meeting
+            committee = Committee.query.filter_by(code=str(sc_code).strip()).first()
+
+        if not committee:
+            flash(f"Committee not found for SC={sc_code}, WG={wg_code}", "danger")
+            continue
+
+        # --- Create Meeting ---
+        meeting = Meeting(
+            committee_id=committee.id,
+            meeting_no=str(meeting_no),
+            date=meeting_date,
+            registration_last_date=reg_last_date if reg_last_date else meeting_date,
+            agenda=agenda
+        )
+        db.session.add(meeting)
+        db.session.flush()
+
+        # --- Create Participations ---
+        # Rule: SC meeting → SC experts only; WG meeting → WG experts only
+        memberships = Membership.query.filter_by(committee_id=committee.id).all()
+
+        for m in memberships:
+            participation = Participation(meeting_id=meeting.id, expert_id=m.expert_id)
+            db.session.add(participation)
+
+    db.session.commit()
+    flash("Meetings imported successfully!", "success")
+    return redirect(url_for('add_meeting'))
 
 # Send Reminder to all participants
 @app.route('/send_reminder/<int:meeting_id>', methods=['POST'])
