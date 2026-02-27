@@ -91,7 +91,7 @@
                             {% if meetings.upcoming_one %}
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <strong>{{ meetings.upcoming_one.meeting_no|ordinal  }}</strong> - <em>{{ meetings.past_one.agenda }}</em><br>
+                                    <strong>{{ meetings.upcoming_one.meeting_no|ordinal  }}</strong> - <em>{{ meetings.upcoming_one.agenda }}</em><br>
                                     <small class="text-muted">{{ meetings.upcoming_one.date }}</small><br>
                                 </div>
                                 <button class="btn btn-sm btn-outline-primary"

@@ -659,6 +659,7 @@ def add_participation(meeting_id):
     attendance = 'attendance' in request.form
     report_submitted = 'report_submitted' in request.form
     reminder_sent = 'reminder_sent' in request.form
+
     participation = Participation(
         meeting_id=meeting_id,
         expert_id=expert_id,
@@ -668,29 +669,44 @@ def add_participation(meeting_id):
     )
     db.session.add(participation)
     db.session.commit()
+
+    meeting = Meeting.query.get_or_404(meeting_id)
     flash('Participation added!', 'success')
-    return redirect(url_for('dashboard'))
+    return redirect(url_for('view_all_meetings', committee_code=meeting.committee.code))
+
 
 # Update Participation
 @app.route('/update_participation/<int:participation_id>', methods=['POST'])
 def update_participation(participation_id):
     participation = Participation.query.get_or_404(participation_id)
-    participation.attendance = 'attendance' in request.form
-    participation.report_submitted = 'report_submitted' in request.form
-    participation.reminder_sent = 'reminder_sent' in request.form
+    action = request.form.get('action')
+
+    if action == "attendance":
+        participation.attendance = True
+    elif action == "report":
+        participation.report_submitted = True
+    elif action == "reminder":
+        participation.reminder_sent = True
+        # optionally trigger reminder email here
+
     db.session.commit()
     flash('Participation updated!', 'info')
-    # Redirect back to dashboard with past tab active
-    return redirect(url_for('dashboard', tab='past'))
+
+    meeting = participation.meeting
+    return redirect(url_for('view_all_meetings', committee_code=meeting.committee.code))
+
 
 # Delete Participation
 @app.route('/delete_participation/<int:participation_id>', methods=['POST'])
 def delete_participation(participation_id):
     participation = Participation.query.get_or_404(participation_id)
+    meeting = participation.meeting
     db.session.delete(participation)
     db.session.commit()
+
     flash('Participation deleted!', 'danger')
-    return redirect(url_for('dashboard'))
+    return redirect(url_for('view_all_meetings', committee_code=meeting.committee.code))
+
 
 # Export for a single committee (NMC)
 @app.route('/export_participation/<int:committee_id>')

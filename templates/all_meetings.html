@@ -18,23 +18,41 @@
     <tbody>
         {% for m in upcoming_meetings %}
         <tr>
-            <td>{{ m.meeting_no|ordinal }}</td>
+            <td>{{ m.meeting_no|ordinal }} Meeting</td>
             <td>{{ m.date }}</td>
             <td>{{ m.agenda }}</td>
             <td>
                 <button class="btn btn-sm btn-outline-primary" 
                         data-bs-toggle="collapse" 
                         data-bs-target="#participation-{{ m.id }}">
-                    Status
+                    Status & Actions
                 </button>
-                <div class="collapse mt-2" id="participation-{{ m.id }}">
+                <div class="collapse {% if request.args.get('open_meeting') == m.id|string %}show{% endif %} mt-2" 
+                     id="participation-{{ m.id }}">
+                    <!-- Bulk Action -->
+                    <form method="post" action="{{ url_for('send_reminder', meeting_id=m.id) }}">
+                        <button name="action" value="reminder_all" class="btn btn-sm btn-warning mb-2">
+                            Send Reminder to All Experts
+                        </button>
+                    </form>
                     <table class="table table-sm">
-                        <thead><tr><th>Expert</th><th>Reminder</th></tr></thead>
+                        <thead><tr><th>Expert</th><th>Reminder</th><th>Actions</th></tr></thead>
                         <tbody>
                             {% for p in participations if p.meeting_id == m.id %}
-                            <tr>
+                            <tr class="{% if request.args.get('highlight') == p.id|string %}table-warning{% endif %}">
                                 <td>{{ p.expert.name }}</td>
-                                <td>{% if p.reminder_sent %}✔{% else %}✘{% endif %}</td>
+                                <td>
+                                    {% if p.reminder_sent %}
+                                        <span class="text-success">✔</span>
+                                    {% else %}
+                                        <span class="text-danger">✘</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form method="post" action="{{ url_for('update_participation', participation_id=p.id) }}">
+                                        <button name="action" value="reminder" class="btn btn-sm btn-warning">Send Reminder</button>
+                                    </form>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -64,24 +82,49 @@
     <tbody>
         {% for m in past_meetings %}
         <tr>
-            <td>{{ m.meeting_no |ordinal }}</td>
+            <td>{{ m.meeting_no|ordinal }} Meeting</td>
             <td>{{ m.date }}</td>
             <td>{{ m.agenda }}</td>
             <td>
                 <button class="btn btn-sm btn-outline-primary" 
                         data-bs-toggle="collapse" 
                         data-bs-target="#participation-{{ m.id }}">
-                    View
+                    View & Actions
                 </button>
-                <div class="collapse mt-2" id="participation-{{ m.id }}">
+                <div class="collapse {% if request.args.get('open_meeting') == m.id|string %}show{% endif %} mt-2" 
+                     id="participation-{{ m.id }}">
+                    <!-- Bulk Action -->
+                    <form method="post" action="{{ url_for('send_completion', meeting_id=m.id) }}">
+                        <button name="action" value="status_all" class="btn btn-sm btn-info mb-2">
+                            Request Participation Status from All Experts
+                        </button>
+                    </form>
                     <table class="table table-sm">
-                        <thead><tr><th>Expert</th><th>Attendance</th><th>Report</th></tr></thead>
+                        <thead><tr><th>Expert</th><th>Attendance</th><th>Report</th><th>Actions</th></tr></thead>
                         <tbody>
                             {% for p in participations if p.meeting_id == m.id %}
-                            <tr>
+                            <tr class="{% if request.args.get('highlight') == p.id|string %}table-warning{% endif %}">
                                 <td>{{ p.expert.name }}</td>
-                                <td>{% if p.attendance %}✔{% else %}✘{% endif %}</td>
-                                <td>{% if p.report_submitted %}✔{% else %}✘{% endif %}</td>
+                                <td>
+                                    {% if p.attendance %}
+                                        <span class="text-success">✔</span>
+                                    {% else %}
+                                        <span class="text-danger">✘</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if p.report_submitted %}
+                                        <span class="text-success">✔</span>
+                                    {% else %}
+                                        <span class="text-danger">✘</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form method="post" action="{{ url_for('update_participation', participation_id=p.id) }}">
+                                        <button name="action" value="attendance" class="btn btn-sm btn-success">Mark Attendance</button>
+                                        <button name="action" value="report" class="btn btn-sm btn-info">Mark Report</button>
+                                    </form>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
