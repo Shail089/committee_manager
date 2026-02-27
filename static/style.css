@@ -117,3 +117,11 @@ body {
     border-radius: 8px;
     /* optional: rounded corners */
 }
+
+.card-body > div {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-body > div:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}

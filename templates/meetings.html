@@ -72,39 +72,37 @@
     {% for nmc in nmcs %}
     <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="nmc-{{ nmc.id }}" role="tabpanel">
 
-        {% for code, meetings in nmc_meetings[nmc.id].items() %}
-        <div class="card mt-3">
-            <!-- Use darker header for contrast -->
-            <div class="card-header bg-dark text-white">
-                <strong>{{ code }} - {{ meetings.title }}</strong>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <!-- Upcoming (left) -->
-                    <div class="col-md-6">
-                        <h6>Most Recent Upcoming</h6>
-                        {% if meetings.upcoming_one %}
-                        <div class="card border-success mb-2">
-                            <div class="card-body d-flex justify-content-between align-items-center">
+        <div class="row">
+            {% for code, meetings in nmc_meetings[nmc.id].items() %}
+            <div class="col-md-6 mb-4">
+                <div class="card shadow-lg border-0">
+                    <!-- Header -->
+                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                        <strong>{{ code }} - {{ meetings.title }}</strong>
+                        <a href="{{ url_for('view_all_meetings', committee_code=code) }}" 
+                           class="btn btn-sm btn-outline-light">See All</a>
+                    </div>
+            
+                    <!-- Body split into two 3D compartments -->
+                    <div class="card-body d-flex gap-3">
+                        <!-- Upcoming Box -->
+                        <div class="flex-fill p-3 rounded shadow-sm border border-success bg-light">
+                            <h6 class="text-success">Upcoming</h6>
+                            {% if meetings.upcoming_one %}
+                            <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <strong>{{ meetings.upcoming_one.meeting_no }}</strong> —
-                                    <span class="badge bg-success">{{ meetings.upcoming_one.date }}</span>
-                                    <p class="mb-0"><small>{{ meetings.upcoming_one.agenda }}</small></p>
+                                    <strong>{{ meetings.upcoming_one.meeting_no|ordinal  }}</strong> - <em>{{ meetings.past_one.agenda }}</em><br>
+                                    <small class="text-muted">{{ meetings.upcoming_one.date }}</small><br>
                                 </div>
-                                <!-- Inline button -->
-                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse"
-                                    data-bs-target="#participation-upcoming-{{ meetings.upcoming_one.id }}">
-                                    Check Status
+                                <button class="btn btn-sm btn-outline-primary"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#participation-upcoming-{{ meetings.upcoming_one.id }}">
+                                    Status
                                 </button>
                             </div>
                             <div class="collapse mt-2" id="participation-upcoming-{{ meetings.upcoming_one.id }}">
-                                <table class="table table-sm table-hover">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Expert</th>
-                                            <th>Reminder Status</th>
-                                        </tr>
-                                    </thead>
+                                <table class="table table-sm">
+                                    <thead><tr><th>Expert</th><th>Reminder</th></tr></thead>
                                     <tbody>
                                         {% for p in participations if p.meeting_id == meetings.upcoming_one.id %}
                                         <tr>
@@ -115,38 +113,29 @@
                                     </tbody>
                                 </table>
                             </div>
+                            {% else %}
+                            <p class="text-muted">No upcoming meeting.</p>
+                            {% endif %}
                         </div>
-                        {% else %}
-                        <p class="text-muted">No upcoming meeting.</p>
-                        {% endif %}
-                    </div>
-
-                    <!-- Past (right) -->
-                    <div class="col-md-6">
-                        <h6>Most Recent Past</h6>
-                        {% if meetings.past_one %}
-                        <div class="card border-secondary mb-2">
-                            <div class="card-body d-flex justify-content-between align-items-center">
+            
+                        <!-- Past Box -->
+                        <div class="flex-fill p-3 rounded shadow-sm border border-secondary bg-light">
+                            <h6 class="text-secondary">Past</h6>
+                            {% if meetings.past_one %}
+                            <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <strong>{{ meetings.past_one.meeting_no }}</strong> —
-                                    <span class="badge bg-secondary">{{ meetings.past_one.date }}</span>
-                                    <p class="mb-0"><small>{{ meetings.past_one.agenda }}</small></p>
+                                    <strong>{{ meetings.past_one.meeting_no|ordinal  }}</strong> - <em>{{ meetings.past_one.agenda }}</em><br>
+                                    <small class="text-muted">{{ meetings.past_one.date }}</small><br>
                                 </div>
-                                <!-- Inline button -->
-                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse"
-                                    data-bs-target="#participation-past-{{ meetings.past_one.id }}">
-                                    View Participation
+                                <button class="btn btn-sm btn-outline-primary"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#participation-past-{{ meetings.past_one.id }}">
+                                    View
                                 </button>
                             </div>
                             <div class="collapse mt-2" id="participation-past-{{ meetings.past_one.id }}">
-                                <table class="table table-sm table-hover table-bordered align-middle">
-                                    <thead class="table-light text-center">
-                                        <tr>
-                                            <th>Expert</th>
-                                            <th>Attendance</th>
-                                            <th>Report</th>
-                                        </tr>
-                                    </thead>
+                                <table class="table table-sm">
+                                    <thead><tr><th>Expert</th><th>Attendance</th><th>Report</th></tr></thead>
                                     <tbody>
                                         {% for p in participations if p.meeting_id == meetings.past_one.id %}
                                         <tr>
@@ -158,17 +147,18 @@
                                     </tbody>
                                 </table>
                             </div>
+                            {% else %}
+                            <p class="text-muted">No past meeting.</p>
+                            {% endif %}
                         </div>
-                        {% else %}
-                        <p class="text-muted">No past meeting.</p>
-                        {% endif %}
                     </div>
                 </div>
             </div>
+            {% endfor %}
         </div>
-        {% endfor %}
 
     </div>
     {% endfor %}
 </div>
+
 {% endblock %}

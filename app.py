@@ -559,6 +559,39 @@ def import_meetings():
     flash("Meetings imported successfully!", "success")
     return redirect(url_for('add_meeting'))
 
+@app.route('/meetings/<path:committee_code>')
+def view_all_meetings(committee_code):
+    # Find the committee by its code (SC or WG)
+    committee = Committee.query.filter_by(code=committee_code).first_or_404()
+
+    today = date.today()
+
+    # Separate upcoming and past meetings
+    upcoming_meetings = Meeting.query.filter(
+        Meeting.committee_id == committee.id,
+        Meeting.date >= today
+    ).order_by(Meeting.date.asc()).all()
+
+    past_meetings = Meeting.query.filter(
+        Meeting.committee_id == committee.id,
+        Meeting.date < today
+    ).order_by(Meeting.date.desc()).all()
+
+    # Collect participations for all meetings
+    participations = Participation.query.filter(
+        Participation.meeting_id.in_([m.id for m in upcoming_meetings + past_meetings])
+    ).all()
+
+    return render_template(
+        'all_meetings.html',
+        committee=committee,
+        upcoming_meetings=upcoming_meetings,
+        past_meetings=past_meetings,
+        participations=participations
+    )
+
+
+
 # Send Reminder to all participants
 @app.route('/send_reminder/<int:meeting_id>', methods=['POST'])
 def send_reminder(meeting_id):
@@ -860,6 +893,21 @@ def send_completion_emails():
         db.session.commit()
 
         print(f"Completion email sent for meeting {meeting.id}")
+
+def ordinal(value):
+    try:
+        n = int(value)
+    except (ValueError, TypeError):
+        return value  # if it can't be converted, just return as-is
+
+    if 11 <= n % 100 <= 13:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+# Register Jinja filter 
+app.jinja_env.filters['ordinal'] = ordinal
 
 # --- Scheduler setup ---
 scheduler = BackgroundScheduler()

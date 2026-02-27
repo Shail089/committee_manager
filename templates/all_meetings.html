@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>All Meetings for {{ committee.code }} - {{ committee.title }}</h2>
+
+<!-- Upcoming Meetings -->
+<h4 class="text-success mt-4">Upcoming Meetings</h4>
+{% if upcoming_meetings %}
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Meeting No</th>
+            <th>Date</th>
+            <th>Agenda</th>
+            <th>Participation</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for m in upcoming_meetings %}
+        <tr>
+            <td>{{ m.meeting_no|ordinal }}</td>
+            <td>{{ m.date }}</td>
+            <td>{{ m.agenda }}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#participation-{{ m.id }}">
+                    Status
+                </button>
+                <div class="collapse mt-2" id="participation-{{ m.id }}">
+                    <table class="table table-sm">
+                        <thead><tr><th>Expert</th><th>Reminder</th></tr></thead>
+                        <tbody>
+                            {% for p in participations if p.meeting_id == m.id %}
+                            <tr>
+                                <td>{{ p.expert.name }}</td>
+                                <td>{% if p.reminder_sent %}✔{% else %}✘{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="text-muted">No upcoming meetings.</p>
+{% endif %}
+
+<!-- Past Meetings -->
+<h4 class="text-secondary mt-4">Past Meetings</h4>
+{% if past_meetings %}
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Meeting No</th>
+            <th>Date</th>
+            <th>Agenda</th>
+            <th>Participation</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for m in past_meetings %}
+        <tr>
+            <td>{{ m.meeting_no |ordinal }}</td>
+            <td>{{ m.date }}</td>
+            <td>{{ m.agenda }}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#participation-{{ m.id }}">
+                    View
+                </button>
+                <div class="collapse mt-2" id="participation-{{ m.id }}">
+                    <table class="table table-sm">
+                        <thead><tr><th>Expert</th><th>Attendance</th><th>Report</th></tr></thead>
+                        <tbody>
+                            {% for p in participations if p.meeting_id == m.id %}
+                            <tr>
+                                <td>{{ p.expert.name }}</td>
+                                <td>{% if p.attendance %}✔{% else %}✘{% endif %}</td>
+                                <td>{% if p.report_submitted %}✔{% else %}✘{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="text-muted">No past meetings.</p>
+{% endif %}
+
+<a href="{{ url_for('add_meeting') }}" class="btn btn-secondary mt-4">Back to Dashboard</a>
+{% endblock %}
